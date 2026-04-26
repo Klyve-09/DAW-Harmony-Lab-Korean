@@ -14,6 +14,8 @@ type PianoRollPlaybackPanelProps = {
   fileName?: string;
   showDawGuide?: boolean;
   markers?: string[];
+  scaleKey?: string;
+  showVoiceLeading?: boolean;
   onPlayStart?: () => void;
 };
 
@@ -30,13 +32,23 @@ function PianoRollPlaybackState({
   fileName,
   showDawGuide,
   markers,
+  scaleKey,
+  showVoiceLeading,
   onPlayStart
 }: PianoRollPlaybackPanelProps) {
   const [playheadBeat, setPlayheadBeat] = useState<number>();
 
   return (
     <>
-      <PianoRoll notes={notes} beats={beats} title={title} playheadBeat={playheadBeat} markers={markers} />
+      <PianoRoll
+        notes={notes}
+        beats={beats}
+        title={title}
+        playheadBeat={playheadBeat}
+        markers={markers}
+        scaleKey={scaleKey}
+        showVoiceLeading={showVoiceLeading}
+      />
       <TransportControls
         notes={notes}
         chords={chords}
@@ -52,7 +64,7 @@ function PianoRollPlaybackState({
 
 function playbackKey(notes: PianoRollNote[], chords?: ChordSymbol[]) {
   if (notes.length > 0) {
-    return notes.map((note) => `${note.id}:${note.midi}:${note.startBeat}:${note.duration}`).join("|");
+    return notes.map((note) => `${note.id}:${note.midi}:${note.startBeat}:${note.duration}:${note.velocity ?? ""}:${note.voice ?? ""}`).join("|");
   }
 
   return chords?.map((chord) => chord.name).join("|") ?? "empty";
