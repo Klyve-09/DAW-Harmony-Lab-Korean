@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import type { ReactNode } from "react";
 import { Lightbulb } from "lucide-react";
 import type { Exercise } from "@/types/lesson";
 import type { PianoRollNote } from "@/types/music";
@@ -13,6 +14,7 @@ export function ExercisePanel({
   exercise,
   savedScore,
   savedHintCount = 0,
+  scaleKey,
   onActivity,
   onResult,
   onHintUsed
@@ -20,6 +22,7 @@ export function ExercisePanel({
   exercise: Exercise;
   savedScore?: number;
   savedHintCount?: number;
+  scaleKey?: string;
   onActivity?: (hasNotes: boolean) => void;
   onResult?: (result: ExerciseScoreResult | undefined) => void;
   onHintUsed?: () => void;
@@ -91,7 +94,7 @@ export function ExercisePanel({
         </div>
       ) : null}
       <div className="mt-4">
-        <DraggablePianoRoll value={notes} onChange={handleNotesChange} expectedNotes={exercise.expectedNotes} />
+        <DraggablePianoRoll value={notes} onChange={handleNotesChange} expectedNotes={exercise.expectedNotes} scaleKey={scaleKey} />
       </div>
       <div className="mt-4 flex flex-wrap items-center gap-2">
         <button
@@ -118,6 +121,15 @@ export function ExercisePanel({
           <div className="mt-3 grid gap-2">
             <FeedbackBlock title="좋은 점" items={result.good} />
             <FeedbackBlock title="고칠 점" items={result.fixes} />
+            <FeedbackBlock
+              title="규칙 분석"
+              items={[
+                ...feedbackDetails(result.categories.duration),
+                ...feedbackDetails(result.categories.bass),
+                ...feedbackDetails(result.categories.tension),
+                ...feedbackDetails(result.categories.voiceLeading)
+              ]}
+            />
             <div className="rounded-sm border border-[#3a3a3a] bg-[#181818] px-3 py-2">
               <p className="text-xs font-semibold text-[#5cd6ff]">다음 행동</p>
               <p className="mt-1 text-xs leading-5 text-zinc-300">{result.nextAction}</p>
@@ -129,7 +141,12 @@ export function ExercisePanel({
   );
 }
 
-function FeedbackBlock({ title, items }: { title: string; items: string[] }) {
+function feedbackDetails(items?: { title: string; detail: string }[]) {
+  return items?.map((item) => `${item.title}: ${item.detail}`) ?? [];
+}
+
+function FeedbackBlock({ title, items }: { title: string; items: string[] }): ReactNode {
+  if (items.length === 0) return null;
   return (
     <div className="rounded-sm border border-[#3a3a3a] bg-[#181818] px-3 py-2">
       <p className="text-xs font-semibold text-zinc-200">{title}</p>

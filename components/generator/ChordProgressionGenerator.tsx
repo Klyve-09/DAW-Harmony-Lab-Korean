@@ -133,13 +133,15 @@ export function ChordProgressionGenerator() {
             title="생성된 피아노롤"
             fileName={`progression-${generated.key}-${generated.chords.map((chord) => chord.name).join("-")}`}
             markers={generated.romanNumerals}
+            scaleKey={generated.key}
+            showVoiceLeading
             showDawGuide
           />
         </div>
         <ProgressionCoach progression={generated} />
         <section className="rounded-sm border border-[#333333] bg-[#1f1f1f] p-4">
           <h2 className="mb-3 text-base font-semibold">실습 노트</h2>
-          <DraggablePianoRoll value={practiceNotes} onChange={setPracticeNotes} />
+          <DraggablePianoRoll value={practiceNotes} onChange={setPracticeNotes} scaleKey={generated.key} />
         </section>
         <GenreReferenceLibrary />
       </section>

@@ -3,6 +3,7 @@
 import { useMemo, useRef, useState } from "react";
 import type { PianoRollNote } from "@/types/music";
 import { midiToNoteName } from "@/lib/theory/notes";
+import { getScalePitchClasses, isMidiInScale } from "@/lib/theory/scaleHighlight";
 import { PianoKeyboard } from "@/components/piano-roll/PianoKeyboard";
 import { NoteBlock } from "@/components/piano-roll/NoteBlock";
 import { RoleLegend } from "@/components/piano-roll/RoleLegend";
@@ -23,11 +24,13 @@ function midiRange() {
 export function DraggablePianoRoll({
   value,
   onChange,
-  expectedNotes
+  expectedNotes,
+  scaleKey
 }: {
   value: PianoRollNote[];
   onChange: (notes: PianoRollNote[]) => void;
   expectedNotes?: PianoRollNote[];
+  scaleKey?: string;
 }) {
   const gridRef = useRef<HTMLDivElement>(null);
   const undoStack = useRef<PianoRollNote[][]>([]);
@@ -37,6 +40,7 @@ export function DraggablePianoRoll({
   const range = useMemo(() => midiRange(), []);
   const selectedNote = value.find((note) => note.id === selectedId);
   const expectedCount = expectedNotes?.length;
+  const scalePitchClasses = getScalePitchClasses(scaleKey, expectedNotes ?? value);
 
   function updateSelected(updater: (note: PianoRollNote) => PianoRollNote) {
     if (!selectedId) return;
@@ -142,17 +146,54 @@ export function DraggablePianoRoll({
     updateSelected((note) => ({ ...note, duration: Math.min(duration, Math.max(0.5, BEATS - note.startBeat)) }));
   }
 
+  function handleKeyDown(event: React.KeyboardEvent<HTMLDivElement>) {
+    if (event.target instanceof HTMLInputElement || event.target instanceof HTMLSelectElement) return;
+    if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "z") {
+      event.preventDefault();
+      if (event.shiftKey) redo();
+      else undo();
+      return;
+    }
+    if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "y") {
+      event.preventDefault();
+      redo();
+      return;
+    }
+    if (event.key === "Delete" || event.key === "Backspace") {
+      event.preventDefault();
+      deleteSelected();
+      return;
+    }
+    if (event.key === "ArrowUp" && event.shiftKey) {
+      event.preventDefault();
+      shiftSelectedOctave(1);
+      return;
+    }
+    if (event.key === "ArrowDown" && event.shiftKey) {
+      event.preventDefault();
+      shiftSelectedOctave(-1);
+      return;
+    }
+    if (["1", "2", "3", "4"].includes(event.key)) {
+      event.preventDefault();
+      setSelectedDuration(durationOptions[Number(event.key) - 1]);
+    }
+  }
+
   return (
-    <div>
+    <div tabIndex={0} onKeyDown={handleKeyDown} className="outline-none focus-visible:ring-2 focus-visible:ring-[#5cd6ff]">
       <div className="mb-2 grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
         <div className="space-y-1">
-          <p className="text-xs text-zinc-400">빈 칸 탭/클릭: 추가 · 노트 드래그: 이동 · 선택 후 삭제</p>
+          <p className="text-xs text-zinc-400">
+            빈 칸 탭/클릭: 추가 · 노트 드래그: 이동 · Delete 삭제 · Ctrl+Z/Y 실행취소/다시실행 · Shift+↑/↓ 옥타브
+          </p>
           <RoleLegend />
           <div className="flex flex-wrap gap-2 text-xs text-zinc-500" aria-live="polite">
             <span>
               노트 {value.length}개{expectedCount ? ` / 목표 ${expectedCount}개` : ""}
             </span>
             <span>{selectedNote ? `선택: ${selectedNote.pitch}, ${selectedNote.startBeat + 1}박` : "선택 없음"}</span>
+            {scaleKey ? <span>{scaleKey} scale 하이라이트</span> : null}
             <span className="sm:hidden">가로로 밀어 더 넓은 박자를 볼 수 있습니다.</span>
           </div>
         </div>
@@ -260,6 +301,17 @@ export function DraggablePianoRoll({
           style={{ width: BEATS * BEAT_WIDTH, minWidth: BEATS * BEAT_WIDTH, height: range.length * ROW_HEIGHT }}
           aria-label="드래그 가능한 미니 피아노롤"
         >
+          {range.map((midi, row) => {
+            const inScale = isMidiInScale(midiToNoteName(midi), scalePitchClasses);
+            return (
+              <div
+                key={`scale-${midi}`}
+                aria-hidden="true"
+                className={`pointer-events-none absolute left-0 right-0 ${inScale ? "bg-[#b8ff4d]/[0.045]" : "bg-[#ff5c5c]/[0.03]"}`}
+                style={{ top: row * ROW_HEIGHT, height: ROW_HEIGHT }}
+              />
+            );
+          })}
           {value.length === 0 ? (
             <div className="pointer-events-none absolute inset-x-4 top-1/2 z-10 -translate-y-1/2 rounded-sm border border-[#444] bg-[#181818]/90 px-3 py-2 text-center text-xs leading-5 text-zinc-300">
               첫 노트는 빈 칸을 눌러 추가하세요. 반 박 단위로 배치됩니다.

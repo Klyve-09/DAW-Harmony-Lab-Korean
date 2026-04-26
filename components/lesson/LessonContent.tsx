@@ -80,6 +80,8 @@ export function LessonContent({ lesson }: { lesson: Lesson }) {
             beats={Math.max(4, example.chords?.length ?? 4)}
             fileName={`${lesson.slug}-example`}
             markers={example.romanNumerals ?? example.chords?.map((chord) => chord.name)}
+            scaleKey={example.key}
+            showVoiceLeading={lesson.slug === "voicing-inversions" || lesson.slug === "arrangement-expansion"}
             onPlayStart={() => setExamplePlayed(true)}
           />
         </section>
@@ -93,6 +95,7 @@ export function LessonContent({ lesson }: { lesson: Lesson }) {
           exercise={lesson.exercises[0]}
           savedScore={savedExerciseScore}
           savedHintCount={progress.hintUsage?.[lesson.exercises[0].id] ?? 0}
+          scaleKey={example.key}
           onActivity={setExerciseStarted}
           onHintUsed={() => recordHintUsage(lesson.exercises[0].id)}
           onResult={(result) => {
