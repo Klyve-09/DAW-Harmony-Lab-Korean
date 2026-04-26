@@ -4,7 +4,9 @@ import { ArrowRight, Music2, PlayCircle, SlidersHorizontal } from "lucide-react"
 import { AppShell } from "@/components/layout/AppShell";
 import { LessonCard } from "@/components/lesson/LessonCard";
 import { curriculum } from "@/data/curriculum";
+import { DailyReviewPanel } from "@/components/lesson/DailyReviewPanel";
 import { HomeProgress } from "@/components/lesson/HomeProgress";
+import { SkillTreePanel } from "@/components/lesson/SkillTreePanel";
 import { siteConfig } from "@/lib/site";
 
 export const metadata: Metadata = {
@@ -49,12 +51,12 @@ export default function HomePage() {
               <Metric label="Quiz" value="30+" />
               <Metric label="BPM" value="90" />
             </div>
-            <div className="mt-6 rounded-sm border border-[#333333] bg-[#181818] p-4">
-              <p className="text-sm font-semibold">오늘의 시작점</p>
-              <p className="mt-2 text-sm leading-6 text-zinc-400">C major 스케일을 찍고, C-G-Am-F를 들어본 뒤 같은 진행을 다른 키로 옮겨보세요.</p>
-            </div>
+            <DailyReviewPanel />
           </div>
         </section>
+        <div className="mt-5">
+          <SkillTreePanel compact />
+        </div>
         <section className="mt-5">
           <div className="mb-3 flex items-center justify-between">
             <h2 className="text-lg font-semibold">15단계 커리큘럼</h2>

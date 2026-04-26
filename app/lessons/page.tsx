@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { AppShell } from "@/components/layout/AppShell";
 import { LessonCard } from "@/components/lesson/LessonCard";
+import { SkillTreePanel } from "@/components/lesson/SkillTreePanel";
 import { curriculum } from "@/data/curriculum";
 
 export const metadata: Metadata = {
@@ -21,6 +22,9 @@ export default function LessonsPage() {
             피아노롤에서 스케일을 찍는 단계부터 장르별 코드 진행과 편곡 확장까지 순서대로 진행합니다.
           </p>
         </section>
+        <div className="mb-4">
+          <SkillTreePanel />
+        </div>
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
           {curriculum.map((lesson) => (
             <LessonCard key={lesson.id} lesson={lesson} />

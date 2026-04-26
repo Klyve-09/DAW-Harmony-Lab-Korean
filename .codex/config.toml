@@ -1,0 +1,26 @@
+# Repo-local Codex defaults. Keep this file lightweight and repo-specific.
+model = "gpt-5.5"
+model_reasoning_effort = "medium"
+plan_mode_reasoning_effort = "high"
+project_doc_fallback_filenames = ["CLAUDE.md", "GEMINI.md", ".cursorrules", "CURSOR.md", "CODEX.md"]
+
+[features]
+memories = true
+
+[agents]
+max_threads = 6
+max_depth = 1
+
+[profiles.fast]
+model = "gpt-5.5"
+model_reasoning_effort = "low"
+plan_mode_reasoning_effort = "medium"
+
+[profiles.deep]
+model = "gpt-5.5"
+model_reasoning_effort = "high"
+plan_mode_reasoning_effort = "xhigh"
+
+# Update these notes after the first successful run:
+# run_command = "npm.cmd run dev"
+# verify_command = "npm.cmd run test"

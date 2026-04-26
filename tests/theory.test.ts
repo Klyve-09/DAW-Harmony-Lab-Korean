@@ -41,11 +41,29 @@ describe("music theory utilities", () => {
 
   it("places add9 notes above the triad in piano roll output", () => {
     expect(chordToPianoRollNotes(buildChord("C", "add9")).map((note) => note.pitch)).toEqual(["C3", "E4", "G4", "D5"]);
+    expect(chordToPianoRollNotes(buildChord("C", "add9")).map((note) => note.role)).toEqual(["root", "third", "fifth", "tension"]);
+  });
+
+  it("marks seventh chord tones with specific piano-roll roles", () => {
+    expect(chordToPianoRollNotes(buildChord("C", "maj7")).map((note) => note.role)).toEqual(["root", "third", "fifth", "seventh"]);
   });
 
   it("uses minor-key templates for generated minor progressions", () => {
     const generated = generateProgression("Am", "pop", "bright", "basic");
     expect(generated.chords.map((chord) => chord.name)).toEqual(["Am", "F", "C", "G"]);
+    expect(generated.fallback).toBeUndefined();
+  });
+
+  it("marks generated progressions when a request falls back to a nearby template", () => {
+    const generated = generateProgression("C", "hiphop", "dreamy", "advanced");
+
+    expect(generated.genre).toBe("hiphop");
+    expect(generated.mood).toBe("dreamy");
+    expect(generated.complexity).toBe("advanced");
+    expect(generated.fallback).toEqual({
+      requested: { genre: "hiphop", mood: "dreamy", complexity: "advanced" },
+      used: { genre: "hiphop", mood: "tense", complexity: "basic" }
+    });
   });
 
   it("generates playable progressions for every advertised option combination", () => {

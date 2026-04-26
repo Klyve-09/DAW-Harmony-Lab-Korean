@@ -3,6 +3,9 @@ import { generateStaticParams } from "@/app/lessons/[slug]/page";
 import { curriculum } from "@/data/curriculum";
 import { exercises } from "@/data/exercises";
 import { quizzes } from "@/data/quizzes";
+import type { PianoRollNote } from "@/types/music";
+
+const allowedRoles = new Set<PianoRollNote["role"]>(["root", "third", "fifth", "seventh", "tension", "passing", "outside", "chordTone"]);
 
 function pitchClassesFor(slug: string) {
   const lesson = curriculum.find((item) => item.slug === slug);
@@ -16,15 +19,61 @@ function chordNamesFor(slug: string) {
   return lesson.exercises[0].expectedChords?.map((chord) => chord.name) ?? [];
 }
 
+function exerciseRolesFor(slug: string) {
+  const lesson = curriculum.find((item) => item.slug === slug);
+  if (!lesson) throw new Error(`Missing lesson: ${slug}`);
+  return lesson.exercises[0].expectedNotes?.map((note) => note.role) ?? [];
+}
+
 describe("curriculum data", () => {
   it("keeps every lesson complete enough to render", () => {
     expect(curriculum).toHaveLength(15);
     curriculum.forEach((lesson, index) => {
       expect(lesson.order).toBe(index + 1);
       expect(lesson.examples[0].notes.length).toBeGreaterThan(0);
+      expect(lesson.commonMistakes).toHaveLength(3);
+      lesson.commonMistakes.forEach((mistake) => {
+        expect(mistake.title).toBeTruthy();
+        expect(mistake.fix).toBeTruthy();
+        expect(mistake.miniDrill).toBeTruthy();
+      });
+      expect(lesson.listeningDrills).toHaveLength(2);
+      lesson.listeningDrills.forEach((drill) => {
+        expect(["A", "B"]).toContain(drill.answerId);
+        expect(drill.options.map((option) => option.id).sort()).toEqual(["A", "B"]);
+        expect(drill.options.map((option) => option.label).sort()).toEqual(["버전 A", "버전 B"]);
+        drill.options.forEach((option) => expect(option.notes.length).toBeGreaterThan(0));
+      });
+      expect(lesson.exercises[0].hints).toHaveLength(3);
       expect(lesson.exercises[0].expectedNotes?.length).toBeGreaterThan(0);
       expect(lesson.quizzes).toHaveLength(2);
       lesson.quizzes.forEach((quiz) => expect(quiz.choices).toContain(quiz.answer));
+    });
+  });
+
+  it("varies listening answer positions across the curriculum", () => {
+    const answerPatterns = curriculum.map((lesson) => lesson.listeningDrills.map((drill) => drill.answerId).join(""));
+
+    expect(new Set(answerPatterns).size).toBeGreaterThan(1);
+    expect(answerPatterns.some((pattern) => pattern !== "AB")).toBe(true);
+  });
+
+  it("includes three 4-bar genre project checkpoints", () => {
+    const projects = curriculum.flatMap((lesson) => (lesson.projectCheckpoint ? [lesson.projectCheckpoint] : []));
+
+    expect(projects.map((project) => project.genre)).toEqual(["Pop", "Lo-fi", "Cinematic"]);
+    projects.forEach((project) => {
+      expect(project.bars).toBe(4);
+      expect(project.chords).toHaveLength(4);
+      expect(project.notes.length).toBeGreaterThan(0);
+      expect(project.steps).toHaveLength(3);
+      expect(project.instrumentLayers).toHaveLength(4);
+      expect(project.extensionBars).toBe(8);
+      expect(project.extensionSteps).toHaveLength(3);
+      project.notes.forEach((note) => {
+        expect(note.chordId).toBeTruthy();
+        expect(note.voice).toBeTruthy();
+      });
     });
   });
 
@@ -36,6 +85,12 @@ describe("curriculum data", () => {
     expect(pitchClassesFor("basslines-slash-chords")).toEqual(["C", "B", "A", "G"]);
     expect(pitchClassesFor("tensions-add-sus")).toEqual(["C", "E", "G", "D"]);
     expect(chordNamesFor("secondary-dominants")).toEqual(["C", "E7", "Am"]);
+  });
+
+  it("labels pitch-list chord exercises with chord roles instead of passing tones", () => {
+    expect(exerciseRolesFor("triads")).toEqual(["root", "third", "fifth"]);
+    expect(exerciseRolesFor("seventh-chords")).toEqual(["root", "third", "fifth", "seventh"]);
+    expect(exerciseRolesFor("tensions-add-sus")).toEqual(["root", "third", "fifth", "tension"]);
   });
 
   it("keeps lesson route slugs unique, URL-safe, and statically generated", () => {
@@ -66,6 +121,20 @@ describe("curriculum data", () => {
     quizzes.forEach((quiz) => {
       expect(lessonIds.has(quiz.lessonId)).toBe(true);
       expect(curriculum.find((lesson) => lesson.id === quiz.lessonId)?.quizzes.some((item) => item.id === quiz.id)).toBe(true);
+    });
+  });
+
+  it("uses only supported piano-roll note roles in generated lesson content", () => {
+    curriculum.forEach((lesson) => {
+      const notes = [
+        ...lesson.examples.flatMap((example) => example.notes),
+        ...lesson.exercises.flatMap((exercise) => exercise.expectedNotes ?? []),
+        ...lesson.listeningDrills.flatMap((drill) => drill.options.flatMap((option) => option.notes))
+      ];
+
+      notes.forEach((note) => {
+        if (note.role) expect(allowedRoles.has(note.role)).toBe(true);
+      });
     });
   });
 });

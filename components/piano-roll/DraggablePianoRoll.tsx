@@ -5,6 +5,7 @@ import type { PianoRollNote } from "@/types/music";
 import { midiToNoteName } from "@/lib/theory/notes";
 import { PianoKeyboard } from "@/components/piano-roll/PianoKeyboard";
 import { NoteBlock } from "@/components/piano-roll/NoteBlock";
+import { RoleLegend } from "@/components/piano-roll/RoleLegend";
 
 const ROW_HEIGHT = 22;
 const BEAT_WIDTH = 64;
@@ -12,6 +13,8 @@ const STEP_WIDTH = BEAT_WIDTH / 2;
 const BEATS = 4;
 const MIN_MIDI = 48;
 const MAX_MIDI = 72;
+const durationOptions = [0.5, 1, 2, 4];
+const roleOptions: NonNullable<PianoRollNote["role"]>[] = ["root", "third", "fifth", "seventh", "tension", "passing", "outside", "chordTone"];
 
 function midiRange() {
   return Array.from({ length: MAX_MIDI - MIN_MIDI + 1 }, (_, index) => MAX_MIDI - index);
@@ -27,10 +30,51 @@ export function DraggablePianoRoll({
   expectedNotes?: PianoRollNote[];
 }) {
   const gridRef = useRef<HTMLDivElement>(null);
+  const undoStack = useRef<PianoRollNote[][]>([]);
+  const redoStack = useRef<PianoRollNote[][]>([]);
   const [selectedId, setSelectedId] = useState<string>();
+  const [historySizes, setHistorySizes] = useState({ undo: 0, redo: 0 });
   const range = useMemo(() => midiRange(), []);
   const selectedNote = value.find((note) => note.id === selectedId);
   const expectedCount = expectedNotes?.length;
+
+  function updateSelected(updater: (note: PianoRollNote) => PianoRollNote) {
+    if (!selectedId) return;
+    commitChange(value.map((note) => (note.id === selectedId ? updater(note) : note)));
+  }
+
+  function pushHistory(snapshot = value) {
+    undoStack.current = [...undoStack.current.slice(-19), snapshot.map((note) => ({ ...note }))];
+  }
+
+  function syncHistorySizes() {
+    setHistorySizes({ undo: undoStack.current.length, redo: redoStack.current.length });
+  }
+
+  function commitChange(next: PianoRollNote[]) {
+    pushHistory();
+    redoStack.current = [];
+    syncHistorySizes();
+    onChange(next);
+  }
+
+  function undo() {
+    const previous = undoStack.current.pop();
+    if (!previous) return;
+    redoStack.current = [...redoStack.current.slice(-19), value.map((note) => ({ ...note }))];
+    setSelectedId(undefined);
+    syncHistorySizes();
+    onChange(previous);
+  }
+
+  function redo() {
+    const next = redoStack.current.pop();
+    if (!next) return;
+    undoStack.current = [...undoStack.current.slice(-19), value.map((note) => ({ ...note }))];
+    setSelectedId(undefined);
+    syncHistorySizes();
+    onChange(next);
+  }
 
   function getGridPosition(event: React.PointerEvent) {
     const rect = gridRef.current?.getBoundingClientRect();
@@ -51,20 +95,27 @@ export function DraggablePianoRoll({
     const id = crypto.randomUUID();
     const next = [
       ...value,
-      { id, pitch: position.pitch, midi: position.midi, startBeat: position.beat, duration: 1, role: "chordTone" as const }
+      { id, pitch: position.pitch, midi: position.midi, startBeat: position.beat, duration: 1, velocity: 0.75, role: "chordTone" as const }
     ];
     setSelectedId(id);
-    onChange(next);
+    commitChange(next);
   }
 
   function moveNote(id: string, event: React.PointerEvent<HTMLButtonElement>) {
     event.currentTarget.setPointerCapture(event.pointerId);
     setSelectedId(id);
+    pushHistory();
+    redoStack.current = [];
+    syncHistorySizes();
     const onMove = (moveEvent: PointerEvent) => {
       const synthetic = { clientX: moveEvent.clientX, clientY: moveEvent.clientY } as React.PointerEvent;
       const position = getGridPosition(synthetic);
       if (!position) return;
-      onChange(value.map((note) => (note.id === id ? { ...note, midi: position.midi, pitch: position.pitch, startBeat: position.beat } : note)));
+      onChange(
+        value.map((note) =>
+          note.id === id ? { ...note, midi: position.midi, pitch: position.pitch, startBeat: position.beat, duration: Math.min(note.duration, Math.max(0.5, BEATS - position.beat)) } : note
+        )
+      );
     };
     const onUp = () => {
       window.removeEventListener("pointermove", onMove);
@@ -76,8 +127,19 @@ export function DraggablePianoRoll({
 
   function deleteSelected() {
     if (!selectedNote) return;
-    onChange(value.filter((note) => note.id !== selectedId));
+    commitChange(value.filter((note) => note.id !== selectedId));
     setSelectedId(undefined);
+  }
+
+  function shiftSelectedOctave(direction: -1 | 1) {
+    updateSelected((note) => {
+      const midi = Math.max(MIN_MIDI, Math.min(MAX_MIDI, note.midi + direction * 12));
+      return { ...note, midi, pitch: midiToNoteName(midi) };
+    });
+  }
+
+  function setSelectedDuration(duration: number) {
+    updateSelected((note) => ({ ...note, duration: Math.min(duration, Math.max(0.5, BEATS - note.startBeat)) }));
   }
 
   return (
@@ -85,6 +147,7 @@ export function DraggablePianoRoll({
       <div className="mb-2 grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
         <div className="space-y-1">
           <p className="text-xs text-zinc-400">빈 칸 탭/클릭: 추가 · 노트 드래그: 이동 · 선택 후 삭제</p>
+          <RoleLegend />
           <div className="flex flex-wrap gap-2 text-xs text-zinc-500" aria-live="polite">
             <span>
               노트 {value.length}개{expectedCount ? ` / 목표 ${expectedCount}개` : ""}
@@ -93,16 +156,101 @@ export function DraggablePianoRoll({
             <span className="sm:hidden">가로로 밀어 더 넓은 박자를 볼 수 있습니다.</span>
           </div>
         </div>
-        <button
-          type="button"
-          aria-label="선택한 노트 삭제"
-          onClick={deleteSelected}
-          disabled={!selectedNote}
-          className="min-h-11 rounded-sm border border-[#444] px-3 py-2 text-xs text-zinc-200 transition hover:border-[#ff5c5c] active:scale-[0.98] disabled:cursor-not-allowed disabled:border-[#333333] disabled:text-zinc-600"
-        >
-          삭제
-        </button>
+        <div className="grid gap-2">
+          <div className="flex flex-wrap justify-end gap-2">
+            <button
+              type="button"
+              aria-label="실습 피아노롤 실행 취소"
+              onClick={undo}
+              disabled={historySizes.undo === 0}
+              className="min-h-9 rounded-sm border border-[#444] px-3 py-1 text-xs text-zinc-200 transition hover:border-[#5cd6ff] active:scale-[0.98] disabled:cursor-not-allowed disabled:border-[#333333] disabled:text-zinc-600"
+            >
+              Undo
+            </button>
+            <button
+              type="button"
+              aria-label="실습 피아노롤 다시 실행"
+              onClick={redo}
+              disabled={historySizes.redo === 0}
+              className="min-h-9 rounded-sm border border-[#444] px-3 py-1 text-xs text-zinc-200 transition hover:border-[#5cd6ff] active:scale-[0.98] disabled:cursor-not-allowed disabled:border-[#333333] disabled:text-zinc-600"
+            >
+              Redo
+            </button>
+            <button
+              type="button"
+              aria-label="선택한 노트 한 옥타브 내리기"
+              onClick={() => shiftSelectedOctave(-1)}
+              disabled={!selectedNote || selectedNote.midi <= MIN_MIDI}
+              className="min-h-9 rounded-sm border border-[#444] px-3 py-1 text-xs text-zinc-200 transition hover:border-[#5cd6ff] active:scale-[0.98] disabled:cursor-not-allowed disabled:border-[#333333] disabled:text-zinc-600"
+            >
+              -12
+            </button>
+            <button
+              type="button"
+              aria-label="선택한 노트 한 옥타브 올리기"
+              onClick={() => shiftSelectedOctave(1)}
+              disabled={!selectedNote || selectedNote.midi >= MAX_MIDI}
+              className="min-h-9 rounded-sm border border-[#444] px-3 py-1 text-xs text-zinc-200 transition hover:border-[#5cd6ff] active:scale-[0.98] disabled:cursor-not-allowed disabled:border-[#333333] disabled:text-zinc-600"
+            >
+              +12
+            </button>
+            <button
+              type="button"
+              aria-label="선택한 노트 삭제"
+              onClick={deleteSelected}
+              disabled={!selectedNote}
+              className="min-h-9 rounded-sm border border-[#444] px-3 py-1 text-xs text-zinc-200 transition hover:border-[#ff5c5c] active:scale-[0.98] disabled:cursor-not-allowed disabled:border-[#333333] disabled:text-zinc-600"
+            >
+              삭제
+            </button>
+          </div>
+          <div className="flex flex-wrap justify-end gap-1">
+            {durationOptions.map((duration) => (
+              <button
+                key={duration}
+                type="button"
+                onClick={() => setSelectedDuration(duration)}
+                disabled={!selectedNote}
+                className={`min-h-8 rounded-sm border px-2 text-[11px] transition active:scale-[0.98] disabled:cursor-not-allowed disabled:border-[#333333] disabled:text-zinc-600 ${
+                  selectedNote?.duration === duration ? "border-[#b8ff4d] bg-[#26301d] text-[#d7ff98]" : "border-[#444] text-zinc-300 hover:border-[#5cd6ff]"
+                }`}
+              >
+                {duration}박
+              </button>
+            ))}
+          </div>
+        </div>
       </div>
+      {selectedNote ? (
+        <div className="mb-2 grid gap-2 rounded-sm border border-[#333333] bg-[#181818] p-3 text-xs text-zinc-300 sm:grid-cols-[minmax(0,1fr)_180px]">
+          <label className="grid gap-1">
+            <span className="text-zinc-500">역할</span>
+            <select
+              value={selectedNote.role ?? "chordTone"}
+              onChange={(event) => updateSelected((note) => ({ ...note, role: event.target.value as NonNullable<PianoRollNote["role"]> }))}
+              className="min-h-9 rounded-sm border border-[#444] bg-[#262626] px-2 text-sm"
+            >
+              {roleOptions.map((role) => (
+                <option key={role} value={role}>
+                  {role}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="grid gap-1">
+            <span className="text-zinc-500">세기 {Math.round((selectedNote.velocity ?? 0.75) * 100)}%</span>
+            <input
+              type="range"
+              min="20"
+              max="100"
+              step="5"
+              value={Math.round((selectedNote.velocity ?? 0.75) * 100)}
+              onChange={(event) => updateSelected((note) => ({ ...note, velocity: Number(event.target.value) / 100 }))}
+              className="h-9"
+            />
+          </label>
+        </div>
+      ) : null}
       <div className="flex overflow-x-auto rounded-sm border border-[#333333] bg-[#1f1f1f]">
         <PianoKeyboard midiRange={range} />
         <div

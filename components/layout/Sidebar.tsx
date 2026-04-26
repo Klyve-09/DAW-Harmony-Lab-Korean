@@ -5,6 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { Check } from "lucide-react";
 import { curriculum } from "@/data/curriculum";
 import { useProgress } from "@/hooks/useProgress";
+import { getLessonSkillState } from "@/lib/learning/skillTree";
 
 export function Sidebar() {
   const pathname = usePathname();
@@ -36,6 +37,7 @@ export function Sidebar() {
           {curriculum.map((lesson) => {
             const active = pathname === `/lessons/${lesson.slug}`;
             const complete = progress.completedLessonIds.includes(lesson.id);
+            const state = getLessonSkillState(lesson, progress);
             return (
               <Link
                 key={lesson.id}
@@ -47,7 +49,10 @@ export function Sidebar() {
                 <span className="flex size-7 shrink-0 items-center justify-center rounded-sm bg-[#262626] text-xs">
                   {complete ? <Check size={14} className="text-[#b8ff4d]" aria-label="완료" /> : lesson.order}
                 </span>
-                <span className="leading-tight [word-break:keep-all]">{lesson.title}</span>
+                <span className="min-w-0 leading-tight [word-break:keep-all]">
+                  <span className="block">{lesson.title}</span>
+                  <span className="mt-1 block text-[11px] text-zinc-500">{state.label}</span>
+                </span>
               </Link>
             );
           })}

@@ -17,7 +17,8 @@ export type NoteName =
   | "A#"
   | "B";
 
-export type NoteRole = "root" | "chordTone" | "tension" | "outside";
+export type NoteRole = "root" | "third" | "fifth" | "seventh" | "tension" | "passing" | "outside" | "chordTone";
+export type NoteVoice = "bass" | "inner" | "lead" | "pad" | "arp" | "melody";
 
 export type PianoRollNote = {
   id: string;
@@ -27,6 +28,9 @@ export type PianoRollNote = {
   duration: number;
   velocity?: number;
   role?: NoteRole;
+  scaleDegree?: string;
+  chordId?: string;
+  voice?: NoteVoice;
 };
 
 export type ChordQuality =
@@ -60,4 +64,16 @@ export type GeneratedProgression = {
   romanNumerals: string[];
   description: string;
   createdAt: string;
+  fallback?: {
+    requested: {
+      genre: string;
+      mood: string;
+      complexity: string;
+    };
+    used: {
+      genre: string;
+      mood: string;
+      complexity: string;
+    };
+  };
 };

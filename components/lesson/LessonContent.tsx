@@ -6,31 +6,43 @@ import { CheckCircle, ListMusic } from "lucide-react";
 import type { Lesson } from "@/types/lesson";
 import { curriculum } from "@/data/curriculum";
 import { useProgress } from "@/hooks/useProgress";
-import { PianoRoll } from "@/components/piano-roll/PianoRoll";
-import { TransportControls } from "@/components/audio/TransportControls";
+import { PianoRollPlaybackPanel } from "@/components/audio/PianoRollPlaybackPanel";
+import { CommonMistakesPanel } from "@/components/lesson/CommonMistakesPanel";
 import { ExercisePanel } from "@/components/lesson/ExercisePanel";
+import { ListeningPanel } from "@/components/lesson/ListeningPanel";
+import { MelodyConflictPanel } from "@/components/lesson/MelodyConflictPanel";
+import { ProjectCheckpointPanel } from "@/components/lesson/ProjectCheckpointPanel";
 import { QuizPanel } from "@/components/lesson/QuizPanel";
+import type { ExerciseScoreResult } from "@/lib/utils";
 
 export function LessonContent({ lesson }: { lesson: Lesson }) {
   const [examplePlayed, setExamplePlayed] = useState(false);
   const [exerciseStarted, setExerciseStarted] = useState(false);
-  const [quizCompleted, setQuizCompleted] = useState(false);
-  const { completeLesson, progress, setLastLesson } = useProgress(curriculum.length);
+  const [exerciseResult, setExerciseResult] = useState<ExerciseScoreResult>();
+  const { completeLesson, progress, recordHintUsage, saveExerciseScore, saveListeningScore, setLastLesson } = useProgress(curriculum.length);
   const example = lesson.examples[0];
   const complete = progress.completedLessonIds.includes(lesson.id);
   const next = curriculum.find((item) => item.order === lesson.order + 1);
-  const quizDone = complete || quizCompleted || progress.quizScores[lesson.id] !== undefined;
+  const quizScore = progress.quizScores[lesson.id];
+  const listeningScore = progress.listeningScores?.[lesson.id];
+  const savedExerciseScore = progress.exerciseScores?.[lesson.id];
+  const exampleDone = complete || examplePlayed;
+  const listeningPassed = complete || (listeningScore ?? 0) >= 80;
+  const exerciseScore = exerciseResult?.score ?? savedExerciseScore;
+  const exercisePassed = complete || (exerciseScore ?? 0) >= 80;
+  const quizPassed = complete || (quizScore ?? 0) >= 80;
   const checklistItems = [
-    { label: "예제 듣기", done: complete || examplePlayed },
-    { label: "실습 노트 찍기", done: complete || exerciseStarted },
-    { label: "퀴즈 풀기", done: quizDone },
+    { label: "예제 듣기", done: exampleDone },
+    { label: "청음 80점 이상", done: listeningPassed },
+    { label: "실습 80점 이상", done: exercisePassed },
+    { label: "퀴즈 80점 이상", done: quizPassed },
     { label: "레슨 완료", done: complete }
   ];
-  const canComplete = checklistItems.slice(0, 3).every((item) => item.done);
+  const canComplete = exampleDone && listeningPassed && exercisePassed && quizPassed;
 
   useEffect(() => {
-    setLastLesson(lesson.slug);
-  }, [lesson.slug, setLastLesson]);
+    setLastLesson(lesson.slug, lesson.id);
+  }, [lesson.id, lesson.slug, setLastLesson]);
 
   return (
     <div className="grid gap-4 p-4 lg:grid-cols-[minmax(0,1fr)_380px]">
@@ -62,13 +74,33 @@ export function LessonContent({ lesson }: { lesson: Lesson }) {
             <h2 className="text-base font-semibold">{example.title}</h2>
             <p className="mt-2 text-sm text-zinc-400">{example.description}</p>
           </div>
-          <PianoRoll notes={example.notes} beats={Math.max(4, example.chords?.length ?? 4)} />
-          <TransportControls notes={example.notes} chords={example.chords} onPlayStart={() => setExamplePlayed(true)} />
+          <PianoRollPlaybackPanel
+            notes={example.notes}
+            chords={example.chords}
+            beats={Math.max(4, example.chords?.length ?? 4)}
+            fileName={`${lesson.slug}-example`}
+            markers={example.romanNumerals ?? example.chords?.map((chord) => chord.name)}
+            onPlayStart={() => setExamplePlayed(true)}
+          />
         </section>
+        <CommonMistakesPanel mistakes={lesson.commonMistakes} />
+        {lesson.slug === "melody-and-chords" ? <MelodyConflictPanel notes={example.notes} chord={example.chords?.[0]} /> : null}
+        {lesson.projectCheckpoint ? <ProjectCheckpointPanel checkpoint={lesson.projectCheckpoint} lessonId={lesson.id} /> : null}
       </article>
       <aside className="space-y-4">
-        <ExercisePanel exercise={lesson.exercises[0]} onActivity={setExerciseStarted} />
-        <QuizPanel lesson={lesson} onComplete={() => setQuizCompleted(true)} />
+        <ListeningPanel drills={lesson.listeningDrills} savedScore={listeningScore} onComplete={(score) => saveListeningScore(lesson.id, score)} />
+        <ExercisePanel
+          exercise={lesson.exercises[0]}
+          savedScore={savedExerciseScore}
+          savedHintCount={progress.hintUsage?.[lesson.exercises[0].id] ?? 0}
+          onActivity={setExerciseStarted}
+          onHintUsed={() => recordHintUsage(lesson.exercises[0].id)}
+          onResult={(result) => {
+            setExerciseResult(result);
+            if (result) saveExerciseScore(lesson.id, result.score);
+          }}
+        />
+        <QuizPanel lesson={lesson} />
         <section className="rounded-sm border border-[#333333] bg-[#1f1f1f] p-4">
           <button
             type="button"
@@ -83,7 +115,10 @@ export function LessonContent({ lesson }: { lesson: Lesson }) {
           </button>
           {!complete && !canComplete ? (
             <p className="mt-3 text-xs leading-5 text-zinc-500">
-              예제를 듣고, 실습 노트를 하나 이상 찍고, 퀴즈 점수를 저장하면 완료할 수 있습니다.
+              예제 재생, 청음 80점 이상, 실습 80점 이상, 퀴즈 80점 이상을 모두 통과해야 완료할 수 있습니다.
+              {listeningScore !== undefined && !listeningPassed ? ` 현재 청음 점수는 ${listeningScore}%입니다.` : ""}
+              {(exerciseStarted || savedExerciseScore !== undefined) && !exercisePassed ? ` 현재 실습 점수는 ${exerciseScore ?? 0}%입니다.` : ""}
+              {quizScore !== undefined && !quizPassed ? ` 현재 퀴즈 점수는 ${quizScore}%입니다.` : ""}
             </p>
           ) : null}
           {next ? (

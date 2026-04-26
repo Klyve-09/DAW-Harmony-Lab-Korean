@@ -30,7 +30,9 @@ describe("learning checks", () => {
   it("scores exercise answers by exact pitch and missing notes", () => {
     const result = scoreExerciseAnswer([note("1", "C4"), note("2", "E4")], [note("a", "C4"), note("b", "E4"), note("c", "G4")]);
     expect(result.score).toBe(67);
+    expect(result.passed).toBe(false);
     expect(result.message).toContain("빠진 음: G4");
+    expect(result.fixes.join(" ")).toContain("G4");
   });
 
   it("penalizes unexpected exercise notes", () => {
@@ -38,8 +40,20 @@ describe("learning checks", () => {
       [note("1", "C4"), note("2", "E4"), note("3", "F#4")],
       [note("a", "C4"), note("b", "E4"), note("c", "G4")]
     );
-    expect(result.score).toBe(52);
+    expect(result.score).toBe(42);
     expect(result.message).toContain("다른 음: F#4");
+    expect(result.fixes.join(" ")).toContain("F#4");
+  });
+
+  it("penalizes duplicate correct notes so they cannot pass mastery", () => {
+    const result = scoreExerciseAnswer(
+      [note("1", "C4"), note("2", "E4"), note("3", "G4"), note("4", "G4")],
+      [note("a", "C4"), note("b", "E4"), note("c", "G4")]
+    );
+
+    expect(result.score).toBe(75);
+    expect(result.passed).toBe(false);
+    expect(result.message).toContain("중복 음: G4");
   });
 
   it("penalizes octave and timing differences", () => {
@@ -55,6 +69,7 @@ describe("learning checks", () => {
       [note("a", "C4", 0), note("b", "E4", 0), note("c", "G4", 0)]
     );
     expect(timingResult.score).toBe(84);
+    expect(timingResult.passed).toBe(true);
     expect(timingResult.message).toContain("박자 위치 2개 확인");
   });
 
@@ -68,8 +83,32 @@ describe("learning checks", () => {
 
     expect(progress.completedLessonIds).toEqual(["lesson-1"]);
     expect(progress.quizScores).toEqual({ "lesson-1": 100, "lesson-2": 0 });
+    expect(progress.listeningScores).toEqual({});
+    expect(progress.exerciseScores).toEqual({});
     expect(progress.recentGeneratedProgressions).toEqual([]);
     expect(progress.lastLessonSlug).toBeUndefined();
+  });
+
+  it("normalizes listening scores like quiz scores", () => {
+    const progress = normalizeProgress({
+      completedLessonIds: [],
+      quizScores: {},
+      listeningScores: { "lesson-1": 80.4, "lesson-2": -1, bad: "nope" },
+      recentGeneratedProgressions: []
+    });
+
+    expect(progress.listeningScores).toEqual({ "lesson-1": 80, "lesson-2": 0 });
+  });
+
+  it("normalizes exercise scores like other mastery scores", () => {
+    const progress = normalizeProgress({
+      completedLessonIds: [],
+      quizScores: {},
+      exerciseScores: { "lesson-1": 95.9, "lesson-2": 1000, bad: "nope" },
+      recentGeneratedProgressions: []
+    });
+
+    expect(progress.exerciseScores).toEqual({ "lesson-1": 96, "lesson-2": 100 });
   });
 
   it("normalizes recent generated progressions to five valid entries", () => {
@@ -87,6 +126,25 @@ describe("learning checks", () => {
       "progression-4",
       "progression-5"
     ]);
+  });
+
+  it("drops invalid generated fallback metadata while preserving valid fallback metadata", () => {
+    const invalidFallback = { ...generatedProgression("invalid-fallback"), fallback: {} };
+    const validFallback = {
+      ...generatedProgression("valid-fallback"),
+      fallback: {
+        requested: { genre: "hiphop", mood: "dreamy", complexity: "advanced" },
+        used: { genre: "hiphop", mood: "tense", complexity: "basic" }
+      }
+    };
+    const progress = normalizeProgress({
+      completedLessonIds: [],
+      quizScores: {},
+      recentGeneratedProgressions: [invalidFallback, validFallback]
+    });
+
+    expect(progress.recentGeneratedProgressions[0].fallback).toBeUndefined();
+    expect(progress.recentGeneratedProgressions[1].fallback).toEqual(validFallback.fallback);
   });
 
   it("caps saved generated progressions and moves regenerated items to the front", () => {

@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useSyncExternalStore } from "react";
 import type { GeneratedProgression } from "@/types/music";
+import type { SavedProjectSubmission } from "@/types/progress";
 import {
   addRecentProgression,
   defaultProgress,
@@ -36,8 +37,12 @@ export function useProgress(totalLessons: number) {
   );
 
   const setLastLesson = useCallback(
-    (slug: string) => {
-      updateProgress((current) => (current.lastLessonSlug === slug ? current : { ...current, lastLessonSlug: slug }));
+    (slug: string, lessonId?: string) => {
+      updateProgress((current) => {
+        const viewedLessonIds = lessonId && !current.viewedLessonIds?.includes(lessonId) ? [...(current.viewedLessonIds ?? []), lessonId] : current.viewedLessonIds;
+        if (current.lastLessonSlug === slug && viewedLessonIds === current.viewedLessonIds) return current;
+        return { ...current, lastLessonSlug: slug, ...(viewedLessonIds ? { viewedLessonIds } : {}) };
+      });
     },
     []
   );
@@ -49,9 +54,49 @@ export function useProgress(totalLessons: number) {
     []
   );
 
+  const saveListeningScore = useCallback(
+    (lessonId: string, score: number) => {
+      updateProgress((current) => ({ ...current, listeningScores: { ...current.listeningScores, [lessonId]: score } }));
+    },
+    []
+  );
+
+  const saveExerciseScore = useCallback(
+    (lessonId: string, score: number) => {
+      updateProgress((current) => ({ ...current, exerciseScores: { ...current.exerciseScores, [lessonId]: score } }));
+    },
+    []
+  );
+
   const saveGeneratedProgression = useCallback(
     (generated: GeneratedProgression) => {
       updateProgress((current) => addRecentProgression(current, generated));
+    },
+    []
+  );
+
+  const recordHintUsage = useCallback(
+    (exerciseId: string) => {
+      updateProgress((current) => ({
+        ...current,
+        hintUsage: {
+          ...current.hintUsage,
+          [exerciseId]: (current.hintUsage?.[exerciseId] ?? 0) + 1
+        }
+      }));
+    },
+    []
+  );
+
+  const saveProjectSubmission = useCallback(
+    (submission: SavedProjectSubmission) => {
+      updateProgress((current) => ({
+        ...current,
+        projectSubmissions: {
+          ...current.projectSubmissions,
+          [submission.checkpointId]: submission
+        }
+      }));
     },
     []
   );
@@ -64,8 +109,23 @@ export function useProgress(totalLessons: number) {
       completeLesson,
       setLastLesson,
       saveQuizScore,
-      saveGeneratedProgression
+      saveListeningScore,
+      saveExerciseScore,
+      saveGeneratedProgression,
+      recordHintUsage,
+      saveProjectSubmission
     }),
-    [completeLesson, progress, saveGeneratedProgression, saveQuizScore, setLastLesson, totalLessons]
+    [
+      completeLesson,
+      progress,
+      recordHintUsage,
+      saveExerciseScore,
+      saveGeneratedProgression,
+      saveListeningScore,
+      saveProjectSubmission,
+      saveQuizScore,
+      setLastLesson,
+      totalLessons
+    ]
   );
 }

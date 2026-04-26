@@ -111,6 +111,13 @@ export function generateProgression(key: string, genre: string, mood: string, co
   const exact = templates.find((item) => item.genre === genre && item.mood === mood && item.complexity === complexity);
   const genreMatch = templates.find((item) => item.genre === genre && item.complexity === complexity);
   const template = exact ?? genreMatch ?? templates.find((item) => item.genre === genre) ?? templates[0];
+  const fallback =
+    exact === undefined
+      ? {
+          requested: { genre, mood, complexity },
+          used: { genre: template.genre, mood: template.mood, complexity: template.complexity }
+        }
+      : undefined;
   return {
     id: crypto.randomUUID(),
     key,
@@ -120,6 +127,7 @@ export function generateProgression(key: string, genre: string, mood: string, co
     chords: transposeProgression(template.romanNumerals, key),
     romanNumerals: template.romanNumerals,
     description: template.description,
-    createdAt: new Date().toISOString()
+    createdAt: new Date().toISOString(),
+    ...(fallback ? { fallback } : {})
   };
 }
