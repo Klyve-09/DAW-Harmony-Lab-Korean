@@ -7,8 +7,9 @@ import { curriculum } from "@/data/curriculum";
 import { generatorOptions, generateProgression } from "@/lib/theory/progressions";
 import { progressionToPianoRollNotes } from "@/lib/utils";
 import { useProgress } from "@/hooks/useProgress";
-import { PianoRoll } from "@/components/piano-roll/PianoRoll";
-import { TransportControls } from "@/components/audio/TransportControls";
+import { GenreReferenceLibrary } from "@/components/generator/GenreReferenceLibrary";
+import { ProgressionCoach } from "@/components/generator/ProgressionCoach";
+import { PianoRollPlaybackPanel } from "@/components/audio/PianoRollPlaybackPanel";
 import { DraggablePianoRoll } from "@/components/piano-roll/DraggablePianoRoll";
 
 const moodLabels: Record<string, string> = {
@@ -104,6 +105,16 @@ export function ChordProgressionGenerator() {
                 {complexityLabels[generated.complexity] ?? generated.complexity}
               </p>
               <p className="mt-3 max-w-2xl text-sm leading-6 text-zinc-400">{generated.description}</p>
+              {generated.fallback ? (
+                <div className="mt-3 max-w-2xl rounded-sm border border-[#5b4a14] bg-[#2a230f] px-3 py-2 text-xs leading-5 text-[#ffcc00]">
+                  선택한 {genreLabels[generated.fallback.requested.genre] ?? generated.fallback.requested.genre} ·{" "}
+                  {moodLabels[generated.fallback.requested.mood] ?? generated.fallback.requested.mood} ·{" "}
+                  {complexityLabels[generated.fallback.requested.complexity] ?? generated.fallback.requested.complexity} 템플릿은 아직 없습니다.
+                  가장 가까운 {genreLabels[generated.fallback.used.genre] ?? generated.fallback.used.genre} ·{" "}
+                  {moodLabels[generated.fallback.used.mood] ?? generated.fallback.used.mood} ·{" "}
+                  {complexityLabels[generated.fallback.used.complexity] ?? generated.fallback.used.complexity} 진행을 추천했습니다.
+                </div>
+              ) : null}
             </div>
             <button
               type="button"
@@ -115,13 +126,22 @@ export function ChordProgressionGenerator() {
           </div>
         </div>
         <div className="overflow-hidden rounded-sm border border-[#333333] bg-[#1f1f1f]">
-          <PianoRoll notes={rollNotes} beats={Math.max(4, generated.chords.length)} title="생성된 피아노롤" />
-          <TransportControls notes={rollNotes} chords={generated.chords} />
+          <PianoRollPlaybackPanel
+            notes={rollNotes}
+            chords={generated.chords}
+            beats={Math.max(4, generated.chords.length)}
+            title="생성된 피아노롤"
+            fileName={`progression-${generated.key}-${generated.chords.map((chord) => chord.name).join("-")}`}
+            markers={generated.romanNumerals}
+            showDawGuide
+          />
         </div>
+        <ProgressionCoach progression={generated} />
         <section className="rounded-sm border border-[#333333] bg-[#1f1f1f] p-4">
           <h2 className="mb-3 text-base font-semibold">실습 노트</h2>
           <DraggablePianoRoll value={practiceNotes} onChange={setPracticeNotes} />
         </section>
+        <GenreReferenceLibrary />
       </section>
     </div>
   );

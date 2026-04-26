@@ -2,9 +2,24 @@ import type { PianoRollNote } from "@/types/music";
 
 const roleClass: Record<NonNullable<PianoRollNote["role"]>, string> = {
   root: "bg-[#ffcc00] text-black",
-  chordTone: "bg-[#b8ff4d] text-black",
+  third: "bg-[#b8ff4d] text-black",
+  fifth: "bg-[#7dd3fc] text-black",
+  seventh: "bg-[#c084fc] text-black",
   tension: "bg-[#5cd6ff] text-black",
-  outside: "bg-[#ff5c5c] text-black"
+  passing: "bg-[#f59e0b] text-black",
+  outside: "bg-[#ff5c5c] text-black",
+  chordTone: "bg-[#86efac] text-black"
+};
+
+const roleLabel: Record<NonNullable<PianoRollNote["role"]>, string> = {
+  root: "루트",
+  third: "3도",
+  fifth: "5도",
+  seventh: "7도",
+  tension: "텐션",
+  passing: "패싱톤",
+  outside: "외부음",
+  chordTone: "코드톤"
 };
 
 export function NoteBlock({
@@ -28,7 +43,8 @@ export function NoteBlock({
     roleClass[note.role ?? "chordTone"]
   } ${selected ? "ring-2 ring-white" : ""}`;
   const style = { top, left, width };
-  const label = `${note.pitch}, ${note.startBeat + 1}박`;
+  const metadata = [note.scaleDegree ? `${note.scaleDegree}도` : "", note.voice ? `${note.voice} voice` : ""].filter(Boolean).join(", ");
+  const label = `${note.pitch}, ${roleLabel[note.role ?? "chordTone"]}, ${note.startBeat + 1}박${metadata ? `, ${metadata}` : ""}`;
 
   if (!onPointerDown && !onClick) {
     return (

@@ -88,8 +88,13 @@ export function QuizPanel({ lesson, onComplete }: { lesson: Lesson; onComplete?:
         </p>
       ) : null}
       {submitted && allAnswered ? (
-        <p className="mt-4 rounded-sm border border-[#4a6b2a] bg-[#1f2a18] p-3 text-sm text-[#d7ff98]" role="status">
-          점수 {score}%가 저장되었습니다.
+        <p
+          className={`mt-4 rounded-sm border p-3 text-sm ${
+            score >= 80 ? "border-[#4a6b2a] bg-[#1f2a18] text-[#d7ff98]" : "border-[#5b4a14] bg-[#2a230f] text-[#ffcc00]"
+          }`}
+          role="status"
+        >
+          점수 {score}%가 저장되었습니다. {score >= 80 ? "레슨 완료 기준을 통과했습니다." : "레슨 완료에는 80점 이상이 필요합니다."}
         </p>
       ) : null}
       <button

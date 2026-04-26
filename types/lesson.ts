@@ -10,11 +10,27 @@ export type MusicExample = {
   romanNumerals?: string[];
 };
 
+export type ListeningDrillOption = {
+  id: "A" | "B";
+  label: string;
+  notes: PianoRollNote[];
+  chords?: ChordSymbol[];
+};
+
+export type ListeningDrill = {
+  id: string;
+  prompt: string;
+  options: ListeningDrillOption[];
+  answerId: ListeningDrillOption["id"];
+  explanation: string;
+};
+
 export type Exercise = {
   id: string;
   title: string;
   instruction: string;
   type: "build-scale" | "build-chord" | "build-progression" | "voicing" | "analysis";
+  hints?: string[];
   expectedNotes?: PianoRollNote[];
   expectedChords?: ChordSymbol[];
 };
@@ -28,6 +44,34 @@ export type Quiz = {
   explanation: string;
 };
 
+export type CommonMistake = {
+  title: string;
+  symptom: string;
+  fix: string;
+  miniDrill: string;
+};
+
+export type ProjectCheckpoint = {
+  id: string;
+  title: string;
+  genre: "Pop" | "Lo-fi" | "Cinematic";
+  goal: string;
+  bars: number;
+  bpm: number;
+  key: string;
+  chords: ChordSymbol[];
+  notes: PianoRollNote[];
+  steps: string[];
+  instrumentLayers?: {
+    name: string;
+    role: string;
+    instruction: string;
+  }[];
+  extensionBars?: number;
+  extensionSteps?: string[];
+  exportPrompt: string;
+};
+
 export type Lesson = {
   id: string;
   slug: string;
@@ -38,6 +82,9 @@ export type Lesson = {
   content: string;
   dawPractice: string;
   examples: MusicExample[];
+  listeningDrills: ListeningDrill[];
+  commonMistakes: CommonMistake[];
+  projectCheckpoint?: ProjectCheckpoint;
   exercises: Exercise[];
   quizzes: Quiz[];
 };

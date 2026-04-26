@@ -5,10 +5,12 @@ import { ArrowRight, Check } from "lucide-react";
 import type { Lesson } from "@/types/lesson";
 import { curriculum } from "@/data/curriculum";
 import { useProgress } from "@/hooks/useProgress";
+import { getLessonSkillState } from "@/lib/learning/skillTree";
 
 export function LessonCard({ lesson }: { lesson: Lesson }) {
   const { progress } = useProgress(curriculum.length);
   const complete = progress.completedLessonIds.includes(lesson.id);
+  const state = getLessonSkillState(lesson, progress);
 
   return (
     <Link
@@ -22,6 +24,7 @@ export function LessonCard({ lesson }: { lesson: Lesson }) {
         </div>
         <h3 className="text-base font-semibold">{lesson.title}</h3>
         <p className="mt-2 text-sm leading-6 text-zinc-400">{lesson.description}</p>
+        <span className="mt-3 inline-flex rounded-sm border border-[#444] px-2 py-1 text-xs text-zinc-300">{state.label}</span>
       </div>
       <span className="mt-4 inline-flex items-center gap-2 text-sm text-[#5cd6ff]">
         학습하기 <ArrowRight size={14} className="transition group-hover:translate-x-1" aria-hidden />
