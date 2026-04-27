@@ -13,7 +13,7 @@ import { ListeningPanel } from "@/components/lesson/ListeningPanel";
 import { MelodyConflictPanel } from "@/components/lesson/MelodyConflictPanel";
 import { ProjectCheckpointPanel } from "@/components/lesson/ProjectCheckpointPanel";
 import { QuizPanel } from "@/components/lesson/QuizPanel";
-import type { ExerciseScoreResult } from "@/lib/utils";
+import type { ExerciseScoreResult } from "@/lib/learning/exerciseScoring";
 
 export function LessonContent({ lesson }: { lesson: Lesson }) {
   const [examplePlayed, setExamplePlayed] = useState(false);

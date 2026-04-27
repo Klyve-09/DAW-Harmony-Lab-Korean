@@ -1,12 +1,13 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { PianoRollNote } from "@/types/music";
 import { midiToNoteName } from "@/lib/theory/notes";
 import { getScalePitchClasses, isMidiInScale } from "@/lib/theory/scaleHighlight";
 import { PianoKeyboard } from "@/components/piano-roll/PianoKeyboard";
 import { NoteBlock } from "@/components/piano-roll/NoteBlock";
 import { RoleLegend } from "@/components/piano-roll/RoleLegend";
+import { pianoRollNoteRoleLabels, pianoRollNoteRoles, type PianoRollNoteRole } from "@/lib/pianoRoll/noteRoles";
 
 const ROW_HEIGHT = 22;
 const BEAT_WIDTH = 64;
@@ -15,7 +16,6 @@ const BEATS = 4;
 const MIN_MIDI = 48;
 const MAX_MIDI = 72;
 const durationOptions = [0.5, 1, 2, 4];
-const roleOptions: NonNullable<PianoRollNote["role"]>[] = ["root", "third", "fifth", "seventh", "tension", "passing", "outside", "chordTone"];
 
 function midiRange() {
   return Array.from({ length: MAX_MIDI - MIN_MIDI + 1 }, (_, index) => MAX_MIDI - index);
@@ -35,12 +35,28 @@ export function DraggablePianoRoll({
   const gridRef = useRef<HTMLDivElement>(null);
   const undoStack = useRef<PianoRollNote[][]>([]);
   const redoStack = useRef<PianoRollNote[][]>([]);
+  const activeDragCleanup = useRef<(() => void) | undefined>(undefined);
   const [selectedId, setSelectedId] = useState<string>();
   const [historySizes, setHistorySizes] = useState({ undo: 0, redo: 0 });
   const range = useMemo(() => midiRange(), []);
   const selectedNote = value.find((note) => note.id === selectedId);
   const expectedCount = expectedNotes?.length;
   const scalePitchClasses = getScalePitchClasses(scaleKey, expectedNotes ?? value);
+
+  useEffect(
+    () => () => {
+      const cleanup = activeDragCleanup.current;
+      activeDragCleanup.current = undefined;
+      cleanup?.();
+    },
+    []
+  );
+
+  function clearActiveDrag() {
+    const cleanup = activeDragCleanup.current;
+    activeDragCleanup.current = undefined;
+    cleanup?.();
+  }
 
   function updateSelected(updater: (note: PianoRollNote) => PianoRollNote) {
     if (!selectedId) return;
@@ -80,7 +96,7 @@ export function DraggablePianoRoll({
     onChange(next);
   }
 
-  function getGridPosition(event: React.PointerEvent) {
+  function getGridPosition(event: { clientX: number; clientY: number }) {
     const rect = gridRef.current?.getBoundingClientRect();
     if (!rect) return null;
     const x = Math.max(0, Math.min(rect.width - 1, event.clientX - rect.left));
@@ -106,14 +122,14 @@ export function DraggablePianoRoll({
   }
 
   function moveNote(id: string, event: React.PointerEvent<HTMLButtonElement>) {
+    clearActiveDrag();
     event.currentTarget.setPointerCapture(event.pointerId);
     setSelectedId(id);
     pushHistory();
     redoStack.current = [];
     syncHistorySizes();
     const onMove = (moveEvent: PointerEvent) => {
-      const synthetic = { clientX: moveEvent.clientX, clientY: moveEvent.clientY } as React.PointerEvent;
-      const position = getGridPosition(synthetic);
+      const position = getGridPosition(moveEvent);
       if (!position) return;
       onChange(
         value.map((note) =>
@@ -121,12 +137,13 @@ export function DraggablePianoRoll({
         )
       );
     };
-    const onUp = () => {
+    const cleanup = () => {
       window.removeEventListener("pointermove", onMove);
-      window.removeEventListener("pointerup", onUp);
+      window.removeEventListener("pointerup", clearActiveDrag);
     };
+    activeDragCleanup.current = cleanup;
     window.addEventListener("pointermove", onMove);
-    window.addEventListener("pointerup", onUp);
+    window.addEventListener("pointerup", clearActiveDrag);
   }
 
   function deleteSelected() {
@@ -268,12 +285,12 @@ export function DraggablePianoRoll({
             <span className="text-zinc-500">역할</span>
             <select
               value={selectedNote.role ?? "chordTone"}
-              onChange={(event) => updateSelected((note) => ({ ...note, role: event.target.value as NonNullable<PianoRollNote["role"]> }))}
+              onChange={(event) => updateSelected((note) => ({ ...note, role: event.target.value as PianoRollNoteRole }))}
               className="min-h-9 rounded-sm border border-[#444] bg-[#262626] px-2 text-sm"
             >
-              {roleOptions.map((role) => (
+              {pianoRollNoteRoles.map((role) => (
                 <option key={role} value={role}>
-                  {role}
+                  {pianoRollNoteRoleLabels[role]}
                 </option>
               ))}
             </select>

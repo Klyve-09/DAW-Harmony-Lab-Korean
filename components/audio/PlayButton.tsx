@@ -83,7 +83,7 @@ export function PlayButton({
     runId.current += 1;
     clearEndTimer();
     clearAnimationFrame();
-    if (stopEngine) stopAudio();
+    if (stopEngine && activePlaybackOwner === owner.current) stopAudio();
     latest.current.onPlayheadChange?.(undefined);
     clearActivePlayback();
     setPlayingState(false, updateState);

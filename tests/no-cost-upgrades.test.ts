@@ -5,7 +5,7 @@ import { getScalePitchClasses, isMidiInScale } from "@/lib/theory/scaleHighlight
 import { buildVoiceLeadingSegments, summarizeVoiceLeading } from "@/lib/learning/voiceLeading";
 import { curriculum } from "@/data/curriculum";
 import { buildChord } from "@/lib/theory/chords";
-import { scoreExerciseAnswer } from "@/lib/utils";
+import { scoreExerciseAnswer } from "@/lib/learning/exerciseScoring";
 import type { PianoRollNote } from "@/types/music";
 
 function note(id: string, pitch: string, midi: number, startBeat: number, role: PianoRollNote["role"] = "chordTone"): PianoRollNote {

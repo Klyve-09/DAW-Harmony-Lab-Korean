@@ -3,7 +3,7 @@ import { buildChord } from "@/lib/theory/chords";
 import { getMajorScale, getNaturalMinorScale } from "@/lib/theory/scales";
 import { transposeProgression } from "@/lib/theory/romanNumerals";
 import { generateProgression, generatorOptions } from "@/lib/theory/progressions";
-import { chordToPianoRollNotes } from "@/lib/utils";
+import { chordToPianoRollNotes } from "@/lib/pianoRoll/chordMapping";
 
 describe("music theory utilities", () => {
   it("builds C major scale", () => {

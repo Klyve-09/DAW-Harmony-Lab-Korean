@@ -3,9 +3,9 @@ import { generateStaticParams } from "@/app/lessons/[slug]/page";
 import { curriculum } from "@/data/curriculum";
 import { exercises } from "@/data/exercises";
 import { quizzes } from "@/data/quizzes";
-import type { PianoRollNote } from "@/types/music";
+import { pianoRollNoteRoles } from "@/lib/pianoRoll/noteRoles";
 
-const allowedRoles = new Set<PianoRollNote["role"]>(["root", "third", "fifth", "seventh", "tension", "passing", "outside", "chordTone"]);
+const allowedRoles = new Set(pianoRollNoteRoles);
 
 function pitchClassesFor(slug: string) {
   const lesson = curriculum.find((item) => item.slug === slug);

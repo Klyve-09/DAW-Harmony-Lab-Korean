@@ -3,7 +3,7 @@
 import { Download } from "lucide-react";
 import type { ChordSymbol, PianoRollNote } from "@/types/music";
 import { buildMidiFileName, notesToMidiFile } from "@/lib/midi/export";
-import { progressionToPianoRollNotes } from "@/lib/utils";
+import { progressionToPianoRollNotes } from "@/lib/pianoRoll/chordMapping";
 
 export function MidiExportButton({
   notes,

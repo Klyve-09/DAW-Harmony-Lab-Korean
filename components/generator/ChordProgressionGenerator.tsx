@@ -5,7 +5,7 @@ import { Wand2 } from "lucide-react";
 import type { GeneratedProgression, PianoRollNote } from "@/types/music";
 import { curriculum } from "@/data/curriculum";
 import { generatorOptions, generateProgression } from "@/lib/theory/progressions";
-import { progressionToPianoRollNotes } from "@/lib/utils";
+import { progressionToPianoRollNotes } from "@/lib/pianoRoll/chordMapping";
 import { useProgress } from "@/hooks/useProgress";
 import { GenreReferenceLibrary } from "@/components/generator/GenreReferenceLibrary";
 import { ProgressionCoach } from "@/components/generator/ProgressionCoach";
@@ -54,6 +54,15 @@ export function ChordProgressionGenerator() {
     setPracticeNotes([]);
   }
 
+  function handleSelectGenerated(item: GeneratedProgression) {
+    setGenerated(item);
+    setKey(item.key);
+    setGenre(item.genre);
+    setMood(item.mood);
+    setComplexity(item.complexity);
+    setPracticeNotes([]);
+  }
+
   return (
     <div className="grid gap-4 p-4 lg:grid-cols-[360px_minmax(0,1fr)]">
       <section className="rounded-sm border border-[#333333] bg-[#1f1f1f] p-4">
@@ -85,7 +94,7 @@ export function ChordProgressionGenerator() {
               <button
                 key={item.id}
                 type="button"
-                onClick={() => setGenerated(item)}
+                onClick={() => handleSelectGenerated(item)}
                 className="min-h-11 w-full rounded-sm border border-[#3a3a3a] bg-[#262626] px-3 py-2 text-left text-xs text-zinc-300 transition hover:border-[#5cd6ff] active:scale-[0.99]"
               >
                 {item.key} · {genreLabels[item.genre] ?? item.genre} · {item.romanNumerals.join(" - ")}

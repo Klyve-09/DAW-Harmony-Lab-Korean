@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { addRecentProgression, getOverallProgress, normalizeProgress } from "@/lib/storage/progressStorage";
-import { scoreExerciseAnswer } from "@/lib/utils";
+import { scoreExerciseAnswer } from "@/lib/learning/exerciseScoring";
 import type { GeneratedProgression } from "@/types/music";
 import type { PianoRollNote } from "@/types/music";
 
