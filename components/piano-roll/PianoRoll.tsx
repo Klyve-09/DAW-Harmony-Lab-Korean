@@ -5,13 +5,10 @@ import { getScalePitchClasses, isMidiInScale } from "@/lib/theory/scaleHighlight
 import { PianoKeyboard } from "@/components/piano-roll/PianoKeyboard";
 import { NoteBlock } from "@/components/piano-roll/NoteBlock";
 import { RoleLegend } from "@/components/piano-roll/RoleLegend";
+import { getEditableMidiRange } from "@/lib/pianoRoll/grid";
 
 const ROW_HEIGHT = 22;
 const BEAT_WIDTH = 64;
-
-function getMidiRange(min = 48, max = 72) {
-  return Array.from({ length: max - min + 1 }, (_, index) => max - index);
-}
 
 export function PianoRoll({
   notes,
@@ -32,7 +29,7 @@ export function PianoRoll({
   showVoiceLeading?: boolean;
   voiceLeadingMode?: VoiceLeadingMode;
 }) {
-  const midiRange = getMidiRange();
+  const midiRange = getEditableMidiRange(notes);
   const minMidi = Math.min(...midiRange);
   const maxMidi = Math.max(...midiRange);
   const clampedPlayheadBeat = playheadBeat === undefined ? undefined : Math.min(beats, Math.max(0, playheadBeat));

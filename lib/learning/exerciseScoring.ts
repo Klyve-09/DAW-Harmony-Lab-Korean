@@ -108,12 +108,10 @@ export function scoreExerciseAnswer(input: PianoRollNote[], expected: PianoRollN
     return expectedDuration !== undefined && Math.abs(note.duration - expectedDuration) > 0.26;
   });
   const expectedBass = expected.filter((note) => note.role === "root" || note.voice === "bass");
-  const inputBass = input.filter((note) => note.role === "root" || note.voice === "bass");
-  const bassMatches = countMatches(countBy(expectedBass.map((note) => note.pitch)), countBy(inputBass.map((note) => note.pitch)));
+  const bassMatches = countMatches(countBy(expectedBass.map((note) => note.pitch)), inputPitchCounts);
   const bassIssues = Math.max(0, expectedBass.length - bassMatches);
   const expectedTensions = expected.filter((note) => note.role === "seventh" || note.role === "tension");
-  const inputTensions = input.filter((note) => note.role === "seventh" || note.role === "tension");
-  const tensionMatches = countMatches(countBy(expectedTensions.map((note) => note.pitch)), countBy(inputTensions.map((note) => note.pitch)));
+  const tensionMatches = countMatches(countBy(expectedTensions.map((note) => note.pitch)), inputPitchCounts);
   const tensionIssues = Math.max(0, expectedTensions.length - tensionMatches);
   const inputVoiceSummary = summarizeVoiceLeading(input);
   const expectedVoiceSummary = summarizeVoiceLeading(expected);

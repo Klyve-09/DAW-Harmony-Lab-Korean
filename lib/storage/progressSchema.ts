@@ -21,6 +21,20 @@ function normalizeStringArray(value: unknown): string[] {
   return [...new Set(value.filter((item): item is string => typeof item === "string"))];
 }
 
+function isStringArray(value: unknown): value is string[] {
+  return Array.isArray(value) && value.every((item) => typeof item === "string");
+}
+
+function isChordSymbol(value: unknown): value is GeneratedProgression["chords"][number] {
+  return (
+    isRecord(value) &&
+    typeof value.name === "string" &&
+    typeof value.root === "string" &&
+    typeof value.quality === "string" &&
+    isStringArray(value.notes)
+  );
+}
+
 function normalizeQuizScores(value: unknown): Record<string, number> {
   if (!isRecord(value)) return {};
   return Object.fromEntries(
@@ -76,8 +90,17 @@ function normalizeProjectSubmissions(value: unknown): UserProgress["projectSubmi
   );
 }
 
+function getProgressionHistoryKey(progression: GeneratedProgression): string {
+  return [
+    progression.key,
+    progression.romanNumerals.join("|"),
+    progression.chords.map((chord) => `${chord.name}:${chord.root}:${chord.quality}:${chord.notes.join(",")}`).join("|")
+  ].join("::");
+}
+
 function normalizeRecentProgressions(value: unknown): GeneratedProgression[] {
   if (!Array.isArray(value)) return [];
+  const seen = new Set<string>();
   return value
     .filter((item): item is GeneratedProgression => {
       if (!isRecord(item)) return false;
@@ -90,12 +113,19 @@ function normalizeRecentProgressions(value: unknown): GeneratedProgression[] {
         typeof item.description === "string" &&
         typeof item.createdAt === "string" &&
         Array.isArray(item.chords) &&
-        Array.isArray(item.romanNumerals)
+        item.chords.every(isChordSymbol) &&
+        isStringArray(item.romanNumerals)
       );
     })
     .map(({ fallback, ...item }) => {
       const normalizedFallback = normalizeGeneratedFallback(fallback);
       return normalizedFallback ? { ...item, fallback: normalizedFallback } : item;
+    })
+    .filter((item) => {
+      const key = getProgressionHistoryKey(item);
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
     })
     .slice(0, 5);
 }
@@ -150,11 +180,12 @@ export function getOverallProgress(progress: UserProgress, totalLessons: number)
 }
 
 export function addRecentProgression(progress: UserProgress, generated: GeneratedProgression): UserProgress {
+  const generatedKey = getProgressionHistoryKey(generated);
   return {
     ...progress,
     recentGeneratedProgressions: [
       generated,
-      ...progress.recentGeneratedProgressions.filter((item) => item.id !== generated.id)
+      ...progress.recentGeneratedProgressions.filter((item) => getProgressionHistoryKey(item) !== generatedKey)
     ].slice(0, 5)
   };
 }

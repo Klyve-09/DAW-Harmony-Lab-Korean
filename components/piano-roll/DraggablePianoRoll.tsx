@@ -8,18 +8,12 @@ import { PianoKeyboard } from "@/components/piano-roll/PianoKeyboard";
 import { NoteBlock } from "@/components/piano-roll/NoteBlock";
 import { RoleLegend } from "@/components/piano-roll/RoleLegend";
 import { pianoRollNoteRoleLabels, pianoRollNoteRoles, type PianoRollNoteRole } from "@/lib/pianoRoll/noteRoles";
+import { getEditableBeatCount, getEditableMidiRange } from "@/lib/pianoRoll/grid";
 
 const ROW_HEIGHT = 22;
 const BEAT_WIDTH = 64;
 const STEP_WIDTH = BEAT_WIDTH / 2;
-const BEATS = 4;
-const MIN_MIDI = 48;
-const MAX_MIDI = 72;
 const durationOptions = [0.5, 1, 2, 4];
-
-function midiRange() {
-  return Array.from({ length: MAX_MIDI - MIN_MIDI + 1 }, (_, index) => MAX_MIDI - index);
-}
 
 export function DraggablePianoRoll({
   value,
@@ -38,9 +32,12 @@ export function DraggablePianoRoll({
   const activeDragCleanup = useRef<(() => void) | undefined>(undefined);
   const [selectedId, setSelectedId] = useState<string>();
   const [historySizes, setHistorySizes] = useState({ undo: 0, redo: 0 });
-  const range = useMemo(() => midiRange(), []);
   const selectedNote = value.find((note) => note.id === selectedId);
   const expectedCount = expectedNotes?.length;
+  const beats = getEditableBeatCount(value, expectedNotes);
+  const range = useMemo(() => getEditableMidiRange(value, expectedNotes), [expectedNotes, value]);
+  const minMidi = Math.min(...range);
+  const maxMidi = Math.max(...range);
   const scalePitchClasses = getScalePitchClasses(scaleKey, expectedNotes ?? value);
 
   useEffect(
@@ -101,10 +98,10 @@ export function DraggablePianoRoll({
     if (!rect) return null;
     const x = Math.max(0, Math.min(rect.width - 1, event.clientX - rect.left));
     const y = Math.max(0, Math.min(rect.height - 1, event.clientY - rect.top));
-    const step = Math.max(0, Math.min(BEATS * 2 - 1, Math.floor(x / STEP_WIDTH)));
+    const step = Math.max(0, Math.min(beats * 2 - 1, Math.floor(x / STEP_WIDTH)));
     const beat = step / 2;
     const row = Math.max(0, Math.min(range.length - 1, Math.floor(y / ROW_HEIGHT)));
-    const midi = MAX_MIDI - row;
+    const midi = maxMidi - row;
     return { beat, midi, pitch: midiToNoteName(midi) };
   }
 
@@ -133,7 +130,7 @@ export function DraggablePianoRoll({
       if (!position) return;
       onChange(
         value.map((note) =>
-          note.id === id ? { ...note, midi: position.midi, pitch: position.pitch, startBeat: position.beat, duration: Math.min(note.duration, Math.max(0.5, BEATS - position.beat)) } : note
+          note.id === id ? { ...note, midi: position.midi, pitch: position.pitch, startBeat: position.beat, duration: Math.min(note.duration, Math.max(0.5, beats - position.beat)) } : note
         )
       );
     };
@@ -154,13 +151,13 @@ export function DraggablePianoRoll({
 
   function shiftSelectedOctave(direction: -1 | 1) {
     updateSelected((note) => {
-      const midi = Math.max(MIN_MIDI, Math.min(MAX_MIDI, note.midi + direction * 12));
+      const midi = Math.max(minMidi, Math.min(maxMidi, note.midi + direction * 12));
       return { ...note, midi, pitch: midiToNoteName(midi) };
     });
   }
 
   function setSelectedDuration(duration: number) {
-    updateSelected((note) => ({ ...note, duration: Math.min(duration, Math.max(0.5, BEATS - note.startBeat)) }));
+    updateSelected((note) => ({ ...note, duration: Math.min(duration, Math.max(0.5, beats - note.startBeat)) }));
   }
 
   function handleKeyDown(event: React.KeyboardEvent<HTMLDivElement>) {
@@ -238,7 +235,7 @@ export function DraggablePianoRoll({
               type="button"
               aria-label="선택한 노트 한 옥타브 내리기"
               onClick={() => shiftSelectedOctave(-1)}
-              disabled={!selectedNote || selectedNote.midi <= MIN_MIDI}
+              disabled={!selectedNote || selectedNote.midi <= minMidi}
               className="min-h-9 rounded-sm border border-[#444] px-3 py-1 text-xs text-zinc-200 transition hover:border-[#5cd6ff] active:scale-[0.98] disabled:cursor-not-allowed disabled:border-[#333333] disabled:text-zinc-600"
             >
               -12
@@ -247,7 +244,7 @@ export function DraggablePianoRoll({
               type="button"
               aria-label="선택한 노트 한 옥타브 올리기"
               onClick={() => shiftSelectedOctave(1)}
-              disabled={!selectedNote || selectedNote.midi >= MAX_MIDI}
+              disabled={!selectedNote || selectedNote.midi >= maxMidi}
               className="min-h-9 rounded-sm border border-[#444] px-3 py-1 text-xs text-zinc-200 transition hover:border-[#5cd6ff] active:scale-[0.98] disabled:cursor-not-allowed disabled:border-[#333333] disabled:text-zinc-600"
             >
               +12
@@ -315,7 +312,7 @@ export function DraggablePianoRoll({
           ref={gridRef}
           onPointerDown={addNote}
           className="roll-grid relative touch-none"
-          style={{ width: BEATS * BEAT_WIDTH, minWidth: BEATS * BEAT_WIDTH, height: range.length * ROW_HEIGHT }}
+          style={{ width: beats * BEAT_WIDTH, minWidth: beats * BEAT_WIDTH, height: range.length * ROW_HEIGHT }}
           aria-label="드래그 가능한 미니 피아노롤"
         >
           {range.map((midi, row) => {
@@ -335,13 +332,13 @@ export function DraggablePianoRoll({
             </div>
           ) : null}
           {value.map((note) => {
-            if (note.midi < MIN_MIDI || note.midi > MAX_MIDI) return null;
+            if (note.midi < minMidi || note.midi > maxMidi) return null;
             return (
               <NoteBlock
                 key={note.id}
                 note={note}
                 selected={note.id === selectedId}
-                top={(MAX_MIDI - note.midi) * ROW_HEIGHT + 2}
+                top={(maxMidi - note.midi) * ROW_HEIGHT + 2}
                 left={note.startBeat * BEAT_WIDTH + 2}
                 width={Math.max(18, note.duration * BEAT_WIDTH - 4)}
                 onPointerDown={(event) => moveNote(note.id, event)}
