@@ -7,22 +7,26 @@ export type VoiceLeadingSegment = {
   semitones: number;
 };
 
-const voiceRank = {
-  bass: 0,
-  inner: 1,
-  pad: 1,
-  arp: 2,
-  melody: 2,
-  lead: 3
-};
+const structuralRoles: Array<PianoRollNote["role"]> = ["root", "third", "fifth", "seventh", "tension"];
 
-function noteLane(note: PianoRollNote, index: number) {
-  return note.voice ? `${voiceRank[note.voice]}-${note.voice}` : `${index}-${note.role ?? "note"}`;
+function structuralLane(note: PianoRollNote, fallbackIndex: number) {
+  if (note.role === "root" || note.voice === "bass") return "0-root";
+  if (note.role === "third") return "1-third";
+  if (note.role === "fifth") return "2-fifth";
+  if (note.role === "seventh") return "3-seventh";
+  if (note.role === "tension") return "4-tension";
+  return `9-${fallbackIndex}`;
+}
+
+function isStructuralNote(note: PianoRollNote) {
+  if (note.id.startsWith("layer-")) return false;
+  return structuralRoles.includes(note.role);
 }
 
 export function buildVoiceLeadingSegments(notes: PianoRollNote[]): VoiceLeadingSegment[] {
   const grouped = new Map<number, PianoRollNote[]>();
-  notes.forEach((note) => {
+  notes.filter(isStructuralNote).forEach((note) => {
+    if (Math.abs(note.startBeat - Math.round(note.startBeat)) > 0.01) return;
     const beat = Math.round(note.startBeat);
     grouped.set(beat, [...(grouped.get(beat) ?? []), note]);
   });
@@ -33,23 +37,23 @@ export function buildVoiceLeadingSegments(notes: PianoRollNote[]): VoiceLeadingS
   beats.forEach((beat, beatIndex) => {
     const nextBeat = beats[beatIndex + 1];
     if (nextBeat === undefined) return;
-    const current = [...(grouped.get(beat) ?? [])].sort((left, right) => left.midi - right.midi);
-    const next = [...(grouped.get(nextBeat) ?? [])].sort((left, right) => left.midi - right.midi);
-    const lanes = Math.min(current.length, next.length);
+    const current = [...(grouped.get(beat) ?? [])].sort((left, right) => structuralLane(left, 0).localeCompare(structuralLane(right, 0)));
+    const next = [...(grouped.get(nextBeat) ?? [])].sort((left, right) => structuralLane(left, 0).localeCompare(structuralLane(right, 0)));
 
-    for (let index = 0; index < lanes; index += 1) {
-      const from = current[index];
-      const to = next[index];
+    current.forEach((from, index) => {
+      const lane = structuralLane(from, index);
+      const to = next.find((candidate, candidateIndex) => structuralLane(candidate, candidateIndex) === lane);
+      if (!to) return;
       segments.push({
         id: `${from.id}->${to.id}-${index}`,
         from,
         to,
         semitones: to.midi - from.midi
       });
-    }
+    });
   });
 
-  return segments.sort((left, right) => noteLane(left.from, 0).localeCompare(noteLane(right.from, 0)));
+  return segments;
 }
 
 export function summarizeVoiceLeading(notes: PianoRollNote[]) {
