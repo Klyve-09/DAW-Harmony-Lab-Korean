@@ -4,6 +4,7 @@ import { curriculum } from "@/data/curriculum";
 import { exercises } from "@/data/exercises";
 import { quizzes } from "@/data/quizzes";
 import { pianoRollNoteRoles } from "@/lib/pianoRoll/noteRoles";
+import { getEditableBeatCount, getEditableMidiRange } from "@/lib/pianoRoll/grid";
 
 const allowedRoles = new Set(pianoRollNoteRoles);
 
@@ -85,6 +86,27 @@ describe("curriculum data", () => {
     expect(pitchClassesFor("basslines-slash-chords")).toEqual(["C", "B", "A", "G"]);
     expect(pitchClassesFor("tensions-add-sus")).toEqual(["C", "E", "G", "D"]);
     expect(chordNamesFor("secondary-dominants")).toEqual(["C", "E7", "Am"]);
+  });
+
+  it("allows the practice piano roll to cover every exercise target beat", () => {
+    curriculum.forEach((lesson) => {
+      const expectedNotes = lesson.exercises[0].expectedNotes ?? [];
+      const latestEndBeat = Math.max(...expectedNotes.map((note) => note.startBeat + note.duration));
+
+      expect(getEditableBeatCount([], expectedNotes)).toBeGreaterThanOrEqual(latestEndBeat);
+    });
+  });
+
+  it("allows the practice piano roll to cover every exercise target pitch", () => {
+    curriculum.forEach((lesson) => {
+      const expectedNotes = lesson.exercises[0].expectedNotes ?? [];
+      const midiRange = getEditableMidiRange([], expectedNotes);
+      const rangeSet = new Set(midiRange);
+
+      expectedNotes.forEach((note) => {
+        expect(rangeSet.has(note.midi)).toBe(true);
+      });
+    });
   });
 
   it("labels pitch-list chord exercises with chord roles instead of passing tones", () => {

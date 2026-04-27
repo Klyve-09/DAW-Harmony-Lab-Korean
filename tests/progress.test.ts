@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { addRecentProgression, getOverallProgress, normalizeProgress } from "@/lib/storage/progressStorage";
 import { scoreExerciseAnswer } from "@/lib/learning/exerciseScoring";
+import { curriculum } from "@/data/curriculum";
 import type { GeneratedProgression } from "@/types/music";
 import type { PianoRollNote } from "@/types/music";
 
@@ -17,8 +18,8 @@ function generatedProgression(id: string): GeneratedProgression {
     complexity: "basic",
     description: `generated ${id}`,
     createdAt: "2026-04-24T00:00:00.000Z",
-    romanNumerals: ["I"],
-    chords: [{ name: "C", root: "C", quality: "major", notes: ["C", "E", "G"] }]
+    romanNumerals: [id],
+    chords: [{ name: `C-${id}`, root: "C", quality: "major", notes: ["C", "E", "G"] }]
   };
 }
 
@@ -71,6 +72,16 @@ describe("learning checks", () => {
     expect(timingResult.score).toBe(84);
     expect(timingResult.passed).toBe(true);
     expect(timingResult.message).toContain("박자 위치 2개 확인");
+  });
+
+  it("passes exact exercise notes even when the editor leaves default note roles", () => {
+    curriculum.forEach((lesson) => {
+      const expected = lesson.exercises[0].expectedNotes ?? [];
+      const editorNotes = expected.map((item) => ({ ...item, role: "chordTone" as const, voice: "inner" as const }));
+      const result = scoreExerciseAnswer(editorNotes, expected);
+
+      expect(result.passed).toBe(true);
+    });
   });
 
   it("normalizes corrupt progress payloads", () => {
@@ -128,6 +139,41 @@ describe("learning checks", () => {
     ]);
   });
 
+  it("normalizes duplicate generated progressions by musical content", () => {
+    const original = generatedProgression("progression-1");
+    const duplicate = {
+      ...original,
+      id: "progression-duplicate",
+      mood: "dreamy",
+      complexity: "intermediate",
+      createdAt: "2026-04-25T00:00:00.000Z"
+    };
+    const progress = normalizeProgress({
+      completedLessonIds: [],
+      quizScores: {},
+      recentGeneratedProgressions: [original, duplicate, generatedProgression("progression-2")]
+    });
+
+    expect(progress.recentGeneratedProgressions.map((item) => item.id)).toEqual(["progression-1", "progression-2"]);
+  });
+
+  it("drops malformed generated progression history without throwing", () => {
+    const progress = normalizeProgress({
+      completedLessonIds: [],
+      quizScores: {},
+      recentGeneratedProgressions: [
+        {
+          ...generatedProgression("bad-chord"),
+          chords: [{ name: "C", root: "C", quality: "major", notes: null }]
+        },
+        { ...generatedProgression("bad-roman"), romanNumerals: ["I", 7] },
+        generatedProgression("valid")
+      ]
+    });
+
+    expect(progress.recentGeneratedProgressions.map((item) => item.id)).toEqual(["valid"]);
+  });
+
   it("drops invalid generated fallback metadata while preserving valid fallback metadata", () => {
     const invalidFallback = { ...generatedProgression("invalid-fallback"), fallback: {} };
     const validFallback = {
@@ -169,5 +215,23 @@ describe("learning checks", () => {
       "progression-4",
       "progression-5"
     ]);
+  });
+
+  it("moves regenerated matching progressions to the front without duplicating history", () => {
+    const baseProgress = {
+      completedLessonIds: [],
+      quizScores: {},
+      recentGeneratedProgressions: [generatedProgression("progression-1")]
+    };
+
+    const updated = addRecentProgression(baseProgress, {
+      ...baseProgress.recentGeneratedProgressions[0],
+      id: "progression-2",
+      mood: "dreamy",
+      complexity: "intermediate",
+      createdAt: "2026-04-25T00:00:00.000Z"
+    });
+
+    expect(updated.recentGeneratedProgressions.map((item) => item.id)).toEqual(["progression-2"]);
   });
 });

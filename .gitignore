@@ -3,6 +3,7 @@ node_modules/
 dist/
 coverage/
 artifacts/
+output/*.log
 *.tsbuildinfo
 .env
 .env*.local
@@ -12,3 +13,4 @@ yarn-error.log*
 pnpm-debug.log*
 artifacts/*.log
 .playwright-mcp/
+.playwright-cli/

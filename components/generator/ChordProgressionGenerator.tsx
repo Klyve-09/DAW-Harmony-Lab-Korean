@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useId, useMemo, useState } from "react";
 import { Wand2 } from "lucide-react";
 import type { GeneratedProgression, PianoRollNote } from "@/types/music";
 import { curriculum } from "@/data/curriculum";
@@ -173,17 +173,30 @@ function Select({
   labels?: Record<string, string>;
   onChange: (value: string) => void;
 }) {
+  const id = useId();
+  const helperId = helper ? `${id}-helper` : undefined;
+
   return (
-    <label className="grid gap-1 text-sm text-zinc-300">
-      <span>{label}</span>
-      {helper ? <span className="text-xs text-zinc-500">{helper}</span> : null}
-      <select value={value} onChange={(event) => onChange(event.target.value)} className="h-11 rounded-sm border border-[#444] bg-[#262626] px-2">
+    <div className="grid gap-1 text-sm text-zinc-300">
+      <label htmlFor={id}>{label}</label>
+      {helper ? (
+        <span id={helperId} className="text-xs text-zinc-500">
+          {helper}
+        </span>
+      ) : null}
+      <select
+        id={id}
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        aria-describedby={helperId}
+        className="h-11 rounded-sm border border-[#444] bg-[#262626] px-2"
+      >
         {values.map((item) => (
           <option key={item} value={item}>
             {labels?.[item] ?? item}
           </option>
         ))}
       </select>
-    </label>
+    </div>
   );
 }
