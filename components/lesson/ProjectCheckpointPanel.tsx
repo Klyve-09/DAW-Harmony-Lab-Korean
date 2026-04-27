@@ -169,7 +169,6 @@ export function ProjectCheckpointPanel({ checkpoint, lessonId }: { checkpoint: P
         fileName={`${checkpoint.id}-${checkpoint.genre}`}
         markers={checkpoint.chords.map((chord) => chord.name)}
         scaleKey={checkpoint.key}
-        showVoiceLeading
         showDawGuide
       />
       <div className="border-t border-[#333333] bg-[#181818] px-5 py-3 text-xs leading-5 text-zinc-400">{checkpoint.exportPrompt}</div>

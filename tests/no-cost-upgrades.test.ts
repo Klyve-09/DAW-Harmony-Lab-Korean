@@ -20,16 +20,25 @@ describe("no-cost learning upgrades", () => {
     expect(isMidiInScale("F#4", scale)).toBe(false);
   });
 
-  it("builds voice-leading segments and flags large leaps", () => {
+  it("builds structural voice-leading segments and flags large leaps", () => {
     const notes = [
-      note("c1", "C4", 60, 0),
-      note("e1", "E4", 64, 0),
-      note("c2", "C5", 72, 1),
-      note("e2", "E5", 76, 1)
+      note("c1", "C4", 60, 0, "root"),
+      note("e1", "E4", 64, 0, "third"),
+      note("c2", "C5", 72, 1, "root"),
+      note("e2", "E5", 76, 1, "third"),
+      { ...note("arp", "G4", 67, 0.5, "chordTone"), id: "layer-arp-g" }
     ];
 
     expect(buildVoiceLeadingSegments(notes)).toHaveLength(2);
     expect(summarizeVoiceLeading(notes).leaps).toHaveLength(2);
+  });
+
+  it("does not draw voice-leading segments for derived project layer notes", () => {
+    const checkpoint = curriculum.find((lesson) => lesson.slug === "tensions-add-sus")?.projectCheckpoint;
+    if (!checkpoint) throw new Error("Expected Lo-fi project checkpoint");
+    const layerNotes = buildProjectLayers(checkpoint).flatMap((layer) => layer.notes);
+
+    expect(buildVoiceLeadingSegments(layerNotes)).toHaveLength(0);
   });
 
   it("derives project layer playback sets and supports solo/mute filtering", () => {
