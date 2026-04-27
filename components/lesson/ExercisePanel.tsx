@@ -104,7 +104,7 @@ export function ExercisePanel({
         >
           정답 확인
         </button>
-        <PlayButton notes={notes} label="내 노트 재생" />
+        <PlayButton notes={notes} label="내 노트 재생" preload="auto" />
         <MidiExportButton notes={notes} fileName={`${exercise.id}-practice`} />
       </div>
       {result ? (

@@ -37,6 +37,7 @@ export function TransportControls({
           chords={chords}
           bpm={bpm}
           loop={loop}
+          preload="auto"
           onPlayStart={onPlayStart}
           onPlayheadChange={onPlayheadChange}
           onPlayingChange={setPlaying}
