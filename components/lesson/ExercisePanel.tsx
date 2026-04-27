@@ -8,7 +8,7 @@ import type { PianoRollNote } from "@/types/music";
 import { MidiExportButton } from "@/components/audio/MidiExportButton";
 import { PlayButton } from "@/components/audio/PlayButton";
 import { DraggablePianoRoll } from "@/components/piano-roll/DraggablePianoRoll";
-import { scoreExerciseAnswer, type ExerciseScoreResult } from "@/lib/utils";
+import { scoreExerciseAnswer, type ExerciseScoreResult } from "@/lib/learning/exerciseScoring";
 
 export function ExercisePanel({
   exercise,

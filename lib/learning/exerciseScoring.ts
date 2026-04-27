@@ -1,59 +1,5 @@
-import { clsx, type ClassValue } from "clsx";
-import type { ChordSymbol, PianoRollNote } from "@/types/music";
+import type { PianoRollNote } from "@/types/music";
 import { summarizeVoiceLeading } from "@/lib/learning/voiceLeading";
-import { noteNameToMidi } from "@/lib/theory/notes";
-
-export function cn(...inputs: ClassValue[]) {
-  return clsx(inputs);
-}
-
-export function chordToPianoRollNotes(chord: ChordSymbol, beat = 0, octave = 4): PianoRollNote[] {
-  const chordId = `${chord.name}-${beat}`;
-  let previousMidi = noteNameToMidi(`${chord.root}${octave - 1}`);
-  return chord.notes.map((note, index) => {
-    let midi = noteNameToMidi(`${note}${index === 0 ? octave - 1 : octave}`);
-    while (index > 0 && midi <= previousMidi) midi += 12;
-    previousMidi = midi;
-    const pitch = `${note}${Math.floor(midi / 12) - 1}`;
-    return {
-      id: `${chord.name}-${beat}-${note}-${index}`,
-      pitch,
-      midi,
-      startBeat: beat,
-      duration: 1,
-      role: getChordNoteRole(chord, index),
-      scaleDegree: getChordToneDegree(chord, index),
-      chordId,
-      voice: index === 0 ? "bass" : index === chord.notes.length - 1 ? "lead" : "inner"
-    };
-  });
-}
-
-export function progressionToPianoRollNotes(chords: ChordSymbol[]): PianoRollNote[] {
-  return chords.flatMap((chord, index) => chordToPianoRollNotes(chord, index, 4));
-}
-
-function getChordNoteRole(chord: ChordSymbol, noteIndex: number): PianoRollNote["role"] {
-  if (noteIndex === 0) return "root";
-  if (noteIndex === 1) {
-    return chord.quality === "sus2" || chord.quality === "sus4" ? "tension" : "third";
-  }
-  if (noteIndex === 2) return "fifth";
-  if (noteIndex === 3) {
-    return chord.quality === "add9" ? "tension" : "seventh";
-  }
-  return "tension";
-}
-
-function getChordToneDegree(chord: ChordSymbol, noteIndex: number) {
-  if (noteIndex === 0) return "1";
-  if (noteIndex === 1) {
-    return chord.quality === "sus2" ? "2" : chord.quality === "sus4" ? "4" : "3";
-  }
-  if (noteIndex === 2) return "5";
-  if (noteIndex === 3) return chord.quality === "add9" ? "9" : "7";
-  return `${9 + Math.max(0, noteIndex - 4) * 2}`;
-}
 
 function pitchClass(pitch: string) {
   return pitch.replace(/[0-9]/g, "");
@@ -229,19 +175,19 @@ export function scoreExerciseAnswer(input: PianoRollNote[], expected: PianoRollN
           ? `${unexpectedPitches[0]}을 목표 코드톤으로 바꾼 뒤 다시 들어보세요.`
           : extraExactPitches.length
             ? `${extraExactPitches[0]} 중복 노트를 하나만 남기고 다시 확인하세요.`
-          : octaveIssues.length
-            ? `${octaveIssues[0]}의 옥타브를 목표 위치로 옮겨보세요.`
-            : timingIssues
-              ? "음 이름은 거의 맞습니다. 시작 박자를 예제와 맞춰보세요."
-              : durationIssues.length
-                ? `${durationIssues[0].pitch}의 길이를 목표 노트처럼 조정해보세요.`
-                : bassIssues
-                  ? "각 코드의 가장 낮은 루트 음부터 다시 맞춰보세요."
-                  : tensionIssues
-                    ? "빠진 7도나 텐션 음을 추가한 뒤 색채를 비교해보세요."
-                    : voiceLeapIssues
-                      ? "가장 크게 튀는 위쪽 음을 가까운 코드톤으로 옮겨보세요."
-              : "내 노트를 재생해서 목표 예제와 번갈아 들으며 차이를 좁혀보세요.";
+            : octaveIssues.length
+              ? `${octaveIssues[0]}의 옥타브를 목표 위치로 옮겨보세요.`
+              : timingIssues
+                ? "음 이름은 거의 맞습니다. 시작 박자를 예제와 맞춰보세요."
+                : durationIssues.length
+                  ? `${durationIssues[0].pitch}의 길이를 목표 노트처럼 조정해보세요.`
+                  : bassIssues
+                    ? "각 코드의 가장 낮은 루트 음부터 다시 맞춰보세요."
+                    : tensionIssues
+                      ? "빠진 7도나 텐션 음을 추가한 뒤 색채를 비교해보세요."
+                      : voiceLeapIssues
+                        ? "가장 크게 튀는 위쪽 음을 가까운 코드톤으로 옮겨보세요."
+                        : "내 노트를 재생해서 목표 예제와 번갈아 들으며 차이를 좁혀보세요.";
 
   return {
     score,
