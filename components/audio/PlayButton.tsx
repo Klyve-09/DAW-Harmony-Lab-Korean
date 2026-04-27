@@ -4,10 +4,11 @@ import React from "react";
 import { Pause, Play, Square } from "lucide-react";
 import type { ChordSymbol, PianoRollNote } from "@/types/music";
 import { getPlaybackDurationBeats } from "@/lib/audio/playback";
-import { playNotes, playProgression, stopAudio } from "@/lib/audio/synth";
+import { playNotes, playProgression, preparePlayback, stopAudio } from "@/lib/audio/synth";
 
 let activePlaybackStop: (() => void) | undefined;
 let activePlaybackOwner: symbol | undefined;
+type PreloadMode = "auto" | "intent" | "none";
 
 export function PlayButton({
   notes,
@@ -15,6 +16,7 @@ export function PlayButton({
   bpm = 90,
   label = "재생",
   loop = false,
+  preload = "intent",
   onPlayStart,
   onPlayheadChange,
   onPlayingChange
@@ -24,6 +26,7 @@ export function PlayButton({
   bpm?: number;
   label?: string;
   loop?: boolean;
+  preload?: PreloadMode;
   onPlayStart?: () => void;
   onPlayheadChange?: (beat: number | undefined) => void;
   onPlayingChange?: (playing: boolean) => void;
@@ -36,12 +39,19 @@ export function PlayButton({
   const activeStop = React.useRef<(() => void) | undefined>(undefined);
   const owner = React.useRef(Symbol("playback-owner"));
   const cleanup = React.useRef<() => void>(() => undefined);
-  const latest = React.useRef({ notes, chords, bpm, loop, onPlayStart, onPlayheadChange, onPlayingChange });
+  const latest = React.useRef({ notes, chords, bpm, loop, preload, onPlayStart, onPlayheadChange, onPlayingChange });
   const hasAudio = Boolean(notes?.length || chords?.length);
 
-  latest.current = { notes, chords, bpm, loop, onPlayStart, onPlayheadChange, onPlayingChange };
+  latest.current = { notes, chords, bpm, loop, preload, onPlayStart, onPlayheadChange, onPlayingChange };
 
   React.useEffect(() => () => cleanup.current(), []);
+  React.useEffect(() => {
+    if (preload !== "auto" || !hasAudio) return;
+    const timer = window.setTimeout(() => {
+      void preparePlayback({ notes, chords, bpm });
+    }, 250);
+    return () => window.clearTimeout(timer);
+  }, [notes, chords, bpm, preload, hasAudio]);
 
   function clearEndTimer() {
     if (!endTimer.current) return;
@@ -136,6 +146,12 @@ export function PlayButton({
     }
   }
 
+  function handlePreloadIntent() {
+    const current = latest.current;
+    if (current.preload === "none" || !(current.notes?.length || current.chords?.length)) return;
+    void preparePlayback({ notes: current.notes, chords: current.chords, bpm: current.bpm });
+  }
+
   function handlePlay() {
     if (!hasAudio) return;
     if (activePlaybackStop && activePlaybackStop !== activeStop.current) activePlaybackStop();
@@ -159,6 +175,8 @@ export function PlayButton({
       <button
         type="button"
         aria-label={playing ? "오디오 정지" : label}
+        onPointerEnter={handlePreloadIntent}
+        onFocus={handlePreloadIntent}
         onClick={playing ? handleStop : handlePlay}
         disabled={!hasAudio}
         className="inline-flex min-h-11 items-center gap-2 rounded-sm bg-[#b8ff4d] px-4 text-sm font-semibold text-black transition hover:bg-[#d5ff91] active:scale-[0.98] disabled:cursor-not-allowed disabled:bg-zinc-600 disabled:text-zinc-300"
