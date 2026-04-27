@@ -33,12 +33,41 @@ describe("no-cost learning upgrades", () => {
     expect(summarizeVoiceLeading(notes).leaps).toHaveLength(2);
   });
 
+  it("draws inversion voice-leading by vertical voice position", () => {
+    const lesson = curriculum.find((item) => item.slug === "voicing-inversions");
+    if (!lesson) throw new Error("Expected voicing-inversions lesson");
+
+    const summary = summarizeVoiceLeading(lesson.examples[0].notes, { mode: "position" });
+
+    expect(summary.segments).toHaveLength(9);
+    expect(summary.leaps).toHaveLength(0);
+  });
+
   it("does not draw voice-leading segments for derived project layer notes", () => {
     const checkpoint = curriculum.find((lesson) => lesson.slug === "tensions-add-sus")?.projectCheckpoint;
     if (!checkpoint) throw new Error("Expected Lo-fi project checkpoint");
     const layerNotes = buildProjectLayers(checkpoint).flatMap((layer) => layer.notes);
 
     expect(buildVoiceLeadingSegments(layerNotes)).toHaveLength(0);
+  });
+
+  it("keeps display filtering separate from project voice-leading analysis", () => {
+    const layerJumpNotes = [
+      { ...note("low-root", "C3", 48, 0, "root"), id: "layer-pad-low-root" },
+      { ...note("low-third", "E3", 52, 0, "third"), id: "layer-pad-low-third" },
+      { ...note("low-fifth", "G3", 55, 0, "fifth"), id: "layer-pad-low-fifth" },
+      { ...note("high-root", "C5", 72, 1, "root"), id: "layer-pad-high-root" },
+      { ...note("high-third", "E5", 76, 1, "third"), id: "layer-pad-high-third" },
+      { ...note("high-fifth", "G5", 79, 1, "fifth"), id: "layer-pad-high-fifth" }
+    ];
+
+    const voiceItem = scoreRuleBasedProject({ notes: layerJumpNotes, chords: [buildChord("C", "major"), buildChord("C", "major")], genre: "Pop" }).items.find(
+      (item) => item.title === "Voice leading"
+    );
+
+    expect(buildVoiceLeadingSegments(layerJumpNotes)).toHaveLength(0);
+    expect(summarizeVoiceLeading(layerJumpNotes, { includeDerivedLayers: true }).leaps).toHaveLength(3);
+    expect(voiceItem?.score).toBeLessThan(100);
   });
 
   it("derives project layer playback sets and supports solo/mute filtering", () => {

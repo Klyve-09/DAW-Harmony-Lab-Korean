@@ -82,6 +82,7 @@ export function LessonContent({ lesson }: { lesson: Lesson }) {
             markers={example.romanNumerals ?? example.chords?.map((chord) => chord.name)}
             scaleKey={example.key}
             showVoiceLeading={lesson.slug === "voicing-inversions" || lesson.slug === "arrangement-expansion"}
+            voiceLeadingMode={lesson.slug === "voicing-inversions" ? "position" : "role"}
             onPlayStart={() => setExamplePlayed(true)}
           />
         </section>

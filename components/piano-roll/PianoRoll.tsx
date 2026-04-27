@@ -1,6 +1,6 @@
 import type { PianoRollNote } from "@/types/music";
 import { midiToNoteName } from "@/lib/theory/notes";
-import { buildVoiceLeadingSegments } from "@/lib/learning/voiceLeading";
+import { buildVoiceLeadingSegments, type VoiceLeadingMode } from "@/lib/learning/voiceLeading";
 import { getScalePitchClasses, isMidiInScale } from "@/lib/theory/scaleHighlight";
 import { PianoKeyboard } from "@/components/piano-roll/PianoKeyboard";
 import { NoteBlock } from "@/components/piano-roll/NoteBlock";
@@ -20,7 +20,8 @@ export function PianoRoll({
   playheadBeat,
   markers,
   scaleKey,
-  showVoiceLeading = false
+  showVoiceLeading = false,
+  voiceLeadingMode = "role"
 }: {
   notes: PianoRollNote[];
   beats?: number;
@@ -29,13 +30,14 @@ export function PianoRoll({
   markers?: string[];
   scaleKey?: string;
   showVoiceLeading?: boolean;
+  voiceLeadingMode?: VoiceLeadingMode;
 }) {
   const midiRange = getMidiRange();
   const minMidi = Math.min(...midiRange);
   const maxMidi = Math.max(...midiRange);
   const clampedPlayheadBeat = playheadBeat === undefined ? undefined : Math.min(beats, Math.max(0, playheadBeat));
   const scalePitchClasses = getScalePitchClasses(scaleKey, notes);
-  const voiceSegments = showVoiceLeading ? buildVoiceLeadingSegments(notes) : [];
+  const voiceSegments = showVoiceLeading ? buildVoiceLeadingSegments(notes, { mode: voiceLeadingMode }) : [];
 
   return (
     <section className="overflow-hidden rounded-sm border border-[#333333] bg-[#1f1f1f]" aria-label={title ?? "피아노롤"}>

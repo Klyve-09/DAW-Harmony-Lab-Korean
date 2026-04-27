@@ -61,7 +61,7 @@ function scoreGenreFit(notes: PianoRollNote[], genre: string) {
 }
 
 export function scoreRuleBasedProject({ notes, chords, genre }: { notes: PianoRollNote[]; chords: ChordSymbol[]; genre: string }): RuleScoreResult {
-  const voice = summarizeVoiceLeading(notes);
+  const voice = summarizeVoiceLeading(notes, { includeDerivedLayers: true });
   const voiceScore = clampScore(100 - voice.leaps.length * 18);
   const items: RuleScoreItem[] = [
     { title: "Duration", score: scoreDuration(notes), detail: "코드와 레이어가 충분히 길게 유지되는지 봅니다." },

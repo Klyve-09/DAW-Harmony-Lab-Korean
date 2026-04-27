@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import type { ChordSymbol, PianoRollNote } from "@/types/music";
+import type { VoiceLeadingMode } from "@/lib/learning/voiceLeading";
 import { PianoRoll } from "@/components/piano-roll/PianoRoll";
 import { TransportControls } from "@/components/audio/TransportControls";
 
@@ -16,6 +17,7 @@ type PianoRollPlaybackPanelProps = {
   markers?: string[];
   scaleKey?: string;
   showVoiceLeading?: boolean;
+  voiceLeadingMode?: VoiceLeadingMode;
   onPlayStart?: () => void;
 };
 
@@ -34,6 +36,7 @@ function PianoRollPlaybackState({
   markers,
   scaleKey,
   showVoiceLeading,
+  voiceLeadingMode,
   onPlayStart
 }: PianoRollPlaybackPanelProps) {
   const [playheadBeat, setPlayheadBeat] = useState<number>();
@@ -48,6 +51,7 @@ function PianoRollPlaybackState({
         markers={markers}
         scaleKey={scaleKey}
         showVoiceLeading={showVoiceLeading}
+        voiceLeadingMode={voiceLeadingMode}
       />
       <TransportControls
         notes={notes}
