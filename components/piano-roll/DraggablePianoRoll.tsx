@@ -10,22 +10,34 @@ import { RoleLegend } from "@/components/piano-roll/RoleLegend";
 import { pianoRollNoteRoleLabels, pianoRollNoteRoles, type PianoRollNoteRole } from "@/lib/pianoRoll/noteRoles";
 import { getEditableBeatCount, getEditableMidiRange } from "@/lib/pianoRoll/grid";
 
-const ROW_HEIGHT = 22;
-const BEAT_WIDTH = 64;
+const ROW_HEIGHT = 26;
+const BEAT_WIDTH = 128;
 const STEP_WIDTH = BEAT_WIDTH / 2;
+const DEFAULT_NOTE_DURATION = 0.5;
 const durationOptions = [0.5, 1, 2, 4];
+const shortcutGroups = [
+  { label: "노트 추가", keys: "빈 칸 클릭" },
+  { label: "선택 이동", keys: "방향키" },
+  { label: "옥타브 이동", keys: "Shift + ↑/↓" },
+  { label: "길이 변경", keys: "1/2/3/4" },
+  { label: "삭제", keys: "Delete" },
+  { label: "실행 취소", keys: "Ctrl/Cmd + Z" }
+];
 
 export function DraggablePianoRoll({
   value,
   onChange,
   expectedNotes,
-  scaleKey
+  scaleKey,
+  playheadBeat
 }: {
   value: PianoRollNote[];
   onChange: (notes: PianoRollNote[]) => void;
   expectedNotes?: PianoRollNote[];
   scaleKey?: string;
+  playheadBeat?: number;
 }) {
+  const rootRef = useRef<HTMLDivElement>(null);
   const gridRef = useRef<HTMLDivElement>(null);
   const undoStack = useRef<PianoRollNote[][]>([]);
   const redoStack = useRef<PianoRollNote[][]>([]);
@@ -107,12 +119,13 @@ export function DraggablePianoRoll({
 
   function addNote(event: React.PointerEvent<HTMLDivElement>) {
     if (event.target !== event.currentTarget) return;
+    rootRef.current?.focus();
     const position = getGridPosition(event);
     if (!position) return;
     const id = crypto.randomUUID();
     const next = [
       ...value,
-      { id, pitch: position.pitch, midi: position.midi, startBeat: position.beat, duration: 1, velocity: 0.75, role: "chordTone" as const }
+      { id, pitch: position.pitch, midi: position.midi, startBeat: position.beat, duration: DEFAULT_NOTE_DURATION, velocity: 0.75, role: "chordTone" as const }
     ];
     setSelectedId(id);
     commitChange(next);
@@ -120,6 +133,7 @@ export function DraggablePianoRoll({
 
   function moveNote(id: string, event: React.PointerEvent<HTMLButtonElement>) {
     clearActiveDrag();
+    rootRef.current?.focus();
     event.currentTarget.setPointerCapture(event.pointerId);
     setSelectedId(id);
     pushHistory();
@@ -156,6 +170,20 @@ export function DraggablePianoRoll({
     });
   }
 
+  function shiftSelectedPitch(direction: -1 | 1) {
+    updateSelected((note) => {
+      const midi = Math.max(minMidi, Math.min(maxMidi, note.midi + direction));
+      return { ...note, midi, pitch: midiToNoteName(midi) };
+    });
+  }
+
+  function nudgeSelectedBeat(direction: -1 | 1) {
+    updateSelected((note) => {
+      const startBeat = Math.max(0, Math.min(beats - note.duration, note.startBeat + direction * 0.5));
+      return { ...note, startBeat };
+    });
+  }
+
   function setSelectedDuration(duration: number) {
     updateSelected((note) => ({ ...note, duration: Math.min(duration, Math.max(0.5, beats - note.startBeat)) }));
   }
@@ -188,6 +216,26 @@ export function DraggablePianoRoll({
       shiftSelectedOctave(-1);
       return;
     }
+    if (event.key === "ArrowUp") {
+      event.preventDefault();
+      shiftSelectedPitch(1);
+      return;
+    }
+    if (event.key === "ArrowDown") {
+      event.preventDefault();
+      shiftSelectedPitch(-1);
+      return;
+    }
+    if (event.key === "ArrowLeft") {
+      event.preventDefault();
+      nudgeSelectedBeat(-1);
+      return;
+    }
+    if (event.key === "ArrowRight") {
+      event.preventDefault();
+      nudgeSelectedBeat(1);
+      return;
+    }
     if (["1", "2", "3", "4"].includes(event.key)) {
       event.preventDefault();
       setSelectedDuration(durationOptions[Number(event.key) - 1]);
@@ -195,18 +243,18 @@ export function DraggablePianoRoll({
   }
 
   return (
-    <div tabIndex={0} onKeyDown={handleKeyDown} className="outline-none focus-visible:ring-2 focus-visible:ring-[#5cd6ff]">
+    <div ref={rootRef} tabIndex={0} onKeyDown={handleKeyDown} className="outline-none focus-visible:ring-2 focus-visible:ring-[#5cd6ff]">
       <div className="mb-2 grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
         <div className="space-y-1">
           <p className="text-xs text-zinc-400">
-            빈 칸 탭/클릭: 추가 · 노트 드래그: 이동 · Delete 삭제 · Ctrl+Z/Y 실행취소/다시실행 · Shift+↑/↓ 옥타브
+            빈 칸 탭/클릭: 추가 · 노트 드래그/방향키: 이동 · Delete 삭제 · Ctrl+Z/Y 실행취소/다시실행
           </p>
           <RoleLegend />
           <div className="flex flex-wrap gap-2 text-xs text-zinc-500" aria-live="polite">
             <span>
               노트 {value.length}개{expectedCount ? ` / 목표 ${expectedCount}개` : ""}
             </span>
-            <span>{selectedNote ? `선택: ${selectedNote.pitch}, ${selectedNote.startBeat + 1}박` : "선택 없음"}</span>
+            <span>{selectedNote ? `선택: ${selectedNote.pitch}, 시작 ${selectedNote.startBeat + 1}박, 길이 ${selectedNote.duration}박` : "선택 없음"}</span>
             {scaleKey ? <span>{scaleKey} scale 하이라이트</span> : null}
             <span className="sm:hidden">가로로 밀어 더 넓은 박자를 볼 수 있습니다.</span>
           </div>
@@ -276,8 +324,88 @@ export function DraggablePianoRoll({
           </div>
         </div>
       </div>
+      <div className="mb-3 rounded-sm border border-[#333333] bg-[#181818] p-3" aria-label="피아노롤 단축키">
+        <div className="mb-2 flex items-center justify-between gap-3">
+          <h3 className="text-xs font-semibold text-zinc-200">피아노롤 단축키</h3>
+          <span className="text-[11px] text-zinc-500">그리드를 클릭한 뒤 사용</span>
+        </div>
+        <dl className="grid gap-2 text-xs sm:grid-cols-2 xl:grid-cols-3">
+          {shortcutGroups.map((shortcut) => (
+            <div key={shortcut.label} className="flex min-h-9 items-center justify-between gap-2 rounded-sm border border-[#3a3a3a] bg-[#202020] px-2">
+              <dt className="text-zinc-400">{shortcut.label}</dt>
+              <dd className="font-semibold text-[#d7ff98]">{shortcut.keys}</dd>
+            </div>
+          ))}
+        </dl>
+      </div>
+      <div className="flex overflow-x-auto rounded-sm border border-[#333333] bg-[#1f1f1f]">
+        <PianoKeyboard midiRange={range} rowHeight={ROW_HEIGHT} />
+        <div
+          ref={gridRef}
+          onPointerDown={addNote}
+          className="roll-grid relative touch-none"
+          style={{
+            width: beats * BEAT_WIDTH,
+            minWidth: beats * BEAT_WIDTH,
+            height: range.length * ROW_HEIGHT,
+            backgroundSize: `${STEP_WIDTH}px ${ROW_HEIGHT}px`
+          }}
+          aria-label="드래그 가능한 미니 피아노롤"
+        >
+          {range.map((midi, row) => {
+            const inScale = isMidiInScale(midiToNoteName(midi), scalePitchClasses);
+            return (
+              <div
+                key={`scale-${midi}`}
+                aria-hidden="true"
+                className={`pointer-events-none absolute left-0 right-0 ${inScale ? "bg-[#b8ff4d]/[0.045]" : "bg-[#ff5c5c]/[0.03]"}`}
+                style={{ top: row * ROW_HEIGHT, height: ROW_HEIGHT }}
+              />
+            );
+          })}
+          {Array.from({ length: beats + 1 }).map((_, index) => (
+            <div
+              key={`beat-${index}`}
+              aria-hidden="true"
+              className="pointer-events-none absolute bottom-0 top-0 z-10 border-l border-[#4a4a4a]"
+              style={{ left: index * BEAT_WIDTH }}
+            />
+          ))}
+          {value.length === 0 ? (
+            <div className="pointer-events-none absolute inset-x-4 top-1/2 z-10 -translate-y-1/2 rounded-sm border border-[#444] bg-[#181818]/90 px-3 py-2 text-center text-xs leading-5 text-zinc-300">
+              첫 노트는 빈 칸을 눌러 추가하세요. 반 박 단위로 배치됩니다.
+            </div>
+          ) : null}
+          {playheadBeat !== undefined ? (
+            <div
+              className="pointer-events-none absolute bottom-0 top-0 z-20 w-[2px] bg-[#5cd6ff] shadow-[0_0_10px_rgba(92,214,255,0.9)]"
+              style={{ left: Math.max(0, Math.min(beats, playheadBeat)) * BEAT_WIDTH }}
+              aria-hidden="true"
+            />
+          ) : null}
+          {value.map((note) => {
+            if (note.midi < minMidi || note.midi > maxMidi) return null;
+            return (
+              <NoteBlock
+                key={note.id}
+                note={note}
+                selected={note.id === selectedId}
+                top={(maxMidi - note.midi) * ROW_HEIGHT + 2}
+                left={note.startBeat * BEAT_WIDTH + 2}
+                width={Math.max(18, note.duration * BEAT_WIDTH - 4)}
+                height={ROW_HEIGHT - 4}
+                onPointerDown={(event) => moveNote(note.id, event)}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  setSelectedId(note.id);
+                }}
+              />
+            );
+          })}
+        </div>
+      </div>
       {selectedNote ? (
-        <div className="mb-2 grid gap-2 rounded-sm border border-[#333333] bg-[#181818] p-3 text-xs text-zinc-300 sm:grid-cols-[minmax(0,1fr)_180px]">
+        <div className="mt-3 grid gap-2 rounded-sm border border-[#333333] bg-[#181818] p-3 text-xs text-zinc-300 sm:grid-cols-[minmax(0,1fr)_180px]">
           <label className="grid gap-1">
             <span className="text-zinc-500">역할</span>
             <select
@@ -306,51 +434,6 @@ export function DraggablePianoRoll({
           </label>
         </div>
       ) : null}
-      <div className="flex overflow-x-auto rounded-sm border border-[#333333] bg-[#1f1f1f]">
-        <PianoKeyboard midiRange={range} />
-        <div
-          ref={gridRef}
-          onPointerDown={addNote}
-          className="roll-grid relative touch-none"
-          style={{ width: beats * BEAT_WIDTH, minWidth: beats * BEAT_WIDTH, height: range.length * ROW_HEIGHT }}
-          aria-label="드래그 가능한 미니 피아노롤"
-        >
-          {range.map((midi, row) => {
-            const inScale = isMidiInScale(midiToNoteName(midi), scalePitchClasses);
-            return (
-              <div
-                key={`scale-${midi}`}
-                aria-hidden="true"
-                className={`pointer-events-none absolute left-0 right-0 ${inScale ? "bg-[#b8ff4d]/[0.045]" : "bg-[#ff5c5c]/[0.03]"}`}
-                style={{ top: row * ROW_HEIGHT, height: ROW_HEIGHT }}
-              />
-            );
-          })}
-          {value.length === 0 ? (
-            <div className="pointer-events-none absolute inset-x-4 top-1/2 z-10 -translate-y-1/2 rounded-sm border border-[#444] bg-[#181818]/90 px-3 py-2 text-center text-xs leading-5 text-zinc-300">
-              첫 노트는 빈 칸을 눌러 추가하세요. 반 박 단위로 배치됩니다.
-            </div>
-          ) : null}
-          {value.map((note) => {
-            if (note.midi < minMidi || note.midi > maxMidi) return null;
-            return (
-              <NoteBlock
-                key={note.id}
-                note={note}
-                selected={note.id === selectedId}
-                top={(maxMidi - note.midi) * ROW_HEIGHT + 2}
-                left={note.startBeat * BEAT_WIDTH + 2}
-                width={Math.max(18, note.duration * BEAT_WIDTH - 4)}
-                onPointerDown={(event) => moveNote(note.id, event)}
-                onClick={(event) => {
-                  event.stopPropagation();
-                  setSelectedId(note.id);
-                }}
-              />
-            );
-          })}
-        </div>
-      </div>
     </div>
   );
 }

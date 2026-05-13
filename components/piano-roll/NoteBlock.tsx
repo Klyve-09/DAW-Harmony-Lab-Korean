@@ -6,6 +6,7 @@ export function NoteBlock({
   top,
   left,
   width,
+  height,
   selected,
   onPointerDown,
   onClick
@@ -14,16 +15,17 @@ export function NoteBlock({
   top: number;
   left: number;
   width: number;
+  height?: number;
   selected?: boolean;
   onPointerDown?: (event: React.PointerEvent<HTMLButtonElement>) => void;
   onClick?: (event: React.MouseEvent<HTMLButtonElement>) => void;
 }) {
-  const className = `absolute h-[18px] rounded-[3px] border border-black/30 px-1 text-left text-[10px] font-semibold text-black ${
+  const className = `absolute rounded-[3px] border border-black/30 px-1 text-left text-[10px] font-semibold text-black ${
     pianoRollNoteRoleClasses[note.role ?? "chordTone"]
   } ${selected ? "ring-2 ring-white" : ""}`;
-  const style = { top, left, width };
+  const style = { top, left, width, height: height ?? 18 };
   const metadata = [note.scaleDegree ? `${note.scaleDegree}도` : "", note.voice ? `${note.voice} voice` : ""].filter(Boolean).join(", ");
-  const label = `${note.pitch}, ${pianoRollNoteRoleLabels[note.role ?? "chordTone"]}, ${note.startBeat + 1}박${metadata ? `, ${metadata}` : ""}`;
+  const label = `${note.pitch}, ${pianoRollNoteRoleLabels[note.role ?? "chordTone"]}, 시작 ${note.startBeat + 1}박, 길이 ${note.duration}박${metadata ? `, ${metadata}` : ""}`;
 
   if (!onPointerDown && !onClick) {
     return (
