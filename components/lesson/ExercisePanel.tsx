@@ -30,12 +30,14 @@ export function ExercisePanel({
   const [notes, setNotes] = useState<PianoRollNote[]>([]);
   const [result, setResult] = useState<ExerciseScoreResult>();
   const [visibleHints, setVisibleHints] = useState(0);
+  const [playheadBeat, setPlayheadBeat] = useState<number>();
   const expectedCount = exercise.expectedNotes?.length ?? 0;
   const hints = exercise.hints ?? [];
 
   function handleNotesChange(next: PianoRollNote[]) {
     setNotes(next);
     setResult(undefined);
+    setPlayheadBeat(undefined);
     onActivity?.(next.length > 0);
     onResult?.(undefined);
   }
@@ -94,7 +96,7 @@ export function ExercisePanel({
         </div>
       ) : null}
       <div className="mt-4">
-        <DraggablePianoRoll value={notes} onChange={handleNotesChange} expectedNotes={exercise.expectedNotes} scaleKey={scaleKey} />
+        <DraggablePianoRoll value={notes} onChange={handleNotesChange} expectedNotes={exercise.expectedNotes} scaleKey={scaleKey} playheadBeat={playheadBeat} />
       </div>
       <div className="mt-4 flex flex-wrap items-center gap-2">
         <button
@@ -104,7 +106,7 @@ export function ExercisePanel({
         >
           정답 확인
         </button>
-        <PlayButton notes={notes} label="내 노트 재생" preload="auto" />
+        <PlayButton notes={notes} label="내 노트 재생" preload="auto" onPlayheadChange={setPlayheadBeat} />
         <MidiExportButton notes={notes} fileName={`${exercise.id}-practice`} />
       </div>
       {result ? (
